@@ -86,4 +86,33 @@ describe('getRates', () => {
     const r = await getRates(ctx(makeFetch(map), makeStorage()));
     expect(r.rates.blue).toBe(1510);
   });
+
+  it('caché vigente sin eurUsd: reconsulta la red y completa eurUsd', async () => {
+    const cached = { rates: { blue: 1400, oficial: 990 }, fetchedAt: 1_000_000 - 60_000, discrepancy: false };
+    const fetchFn = makeFetch(HAPPY);
+    const storage = makeStorage({ rates: cached });
+    const r = await getRates(ctx(fetchFn, storage));
+    expect(fetchFn).toHaveBeenCalled();
+    expect(r).toMatchObject({ ok: true, stale: false, fetchedAt: 1_000_000 });
+    expect(r.rates).toEqual({ blue: 1500, oficial: 1000, eurUsd: 1.1 });
+    expect(storage._m.get('rates').rates.eurUsd).toBe(1.1);
+  });
+
+  it('blue/oficial frescos + eurUsd de caché vencida: stale false y fetchedAt fresco', async () => {
+    const cached = { rates: { blue: 1400, oficial: 990, eurUsd: 1.05 }, fetchedAt: 1_000_000 - 3_600_000, discrepancy: false };
+    const map = { ...HAPPY };
+    delete map[U.eur1]; delete map[U.eur2];
+    const r = await getRates(ctx(makeFetch(map), makeStorage({ rates: cached })));
+    expect(r).toMatchObject({ ok: true, stale: false, fetchedAt: 1_000_000 });
+    expect(r.rates).toEqual({ blue: 1500, oficial: 1000, eurUsd: 1.05 });
+  });
+
+  it('discrepancy cacheada se conserva al reusar un valor de la caché', async () => {
+    const cached = { rates: { blue: 1400, oficial: 990, eurUsd: 1.05 }, fetchedAt: 1_000_000 - 3_600_000, discrepancy: true };
+    const map = { ...HAPPY };
+    delete map[U.eur1]; delete map[U.eur2];
+    const r = await getRates(ctx(makeFetch(map), makeStorage({ rates: cached })));
+    expect(r.ok).toBe(true);
+    expect(r.discrepancy).toBe(true);
+  });
 });

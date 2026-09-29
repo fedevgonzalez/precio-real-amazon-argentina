@@ -43,7 +43,10 @@ async function resolveRate(name, fetchFn, rules) {
 export async function getRates({ fetchFn, storage, rules, now = Date.now }) {
   const cached = await storage.get('rates');
   const ttl = rules.cache.minutos * 60_000;
-  if (cached && now() - cached.fetchedAt < ttl) {
+  // Vigente solo si está completa: sin eurUsd hay que reintentar (amazon.es quedaría sin conversión todo el TTL).
+  const cacheLive = cached && now() - cached.fetchedAt < ttl
+    && ['blue', 'oficial', 'eurUsd'].every((n) => cached.rates?.[n]);
+  if (cacheLive) {
     return { ok: true, rates: cached.rates, fetchedAt: cached.fetchedAt, stale: false, discrepancy: !!cached.discrepancy };
   }
 
@@ -51,6 +54,7 @@ export async function getRates({ fetchFn, storage, rules, now = Date.now }) {
   const fresh = await Promise.all(names.map((n) => resolveRate(n, fetchFn, rules)));
 
   const rates = {};
+  let reused = false;
   let stale = false;
   let discrepancy = false;
   names.forEach((n, i) => {
@@ -59,12 +63,14 @@ export async function getRates({ fetchFn, storage, rules, now = Date.now }) {
       discrepancy ||= fresh[i].discrepancy;
     } else if (cached?.rates?.[n]) {
       rates[n] = cached.rates[n];
-      stale = true;
+      reused = true;
+      if (n !== 'eurUsd') stale = true;
     }
   });
 
   if (!rates.blue || !rates.oficial) return { ok: false, error: 'NO_RATES' };
 
+  if (reused) discrepancy ||= !!cached.discrepancy;
   const fetchedAt = stale ? cached.fetchedAt : now();
   await storage.set('rates', { rates, fetchedAt, discrepancy });
   return { ok: true, rates, fetchedAt, stale, discrepancy };
