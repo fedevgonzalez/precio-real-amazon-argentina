@@ -49,7 +49,13 @@ for (const url of urls) {
       .map((s) => document.querySelector(s)?.outerHTML ?? '')
       .join('\n'),
   );
-  fs.writeFileSync(`tests/fixtures/real-${n}.html`, `<body>${fixture}</body>`);
+  // Un fixture vacío (captcha, página sin precio) no se guarda para no pisar
+  // un fixture real bueno de una corrida anterior.
+  if (fixture.trim() === '') {
+    console.log('  fixture vacío: no se guarda (¿captcha o página sin precio?)');
+  } else {
+    fs.writeFileSync(`tests/fixtures/real-${n}.html`, `<body>${fixture}</body>`);
+  }
   await page.close();
 }
 await ctx.close();
