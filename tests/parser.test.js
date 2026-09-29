@@ -30,6 +30,20 @@ describe('parseProduct', () => {
     });
   });
 
+  it('amazon.com: envío gratis condicional (FREE + monto) → envio null, no 0', () => {
+    const d = doc(core(price('$20.00')) + delivery('$12.99 delivery Tuesday. FREE delivery on orders over $49'));
+    const r = parseProduct(d, 'www.amazon.com');
+    expect(r.envio).toBeNull();
+    expect(r.envioIncluyeImportFees).toBe(false);
+  });
+
+  it('amazon.es: envío gratis condicional (GRATIS + monto) → envio null, no 0', () => {
+    const d = doc(core(price('25,00 €')) + delivery('Envío 5,99 € Entrega el martes. Envío GRATIS en pedidos superiores a 29 €'));
+    const r = parseProduct(d, 'www.amazon.es');
+    expect(r.envio).toBeNull();
+    expect(r.envioIncluyeImportFees).toBe(false);
+  });
+
   it('amazon.com: rango de precios', () => {
     const range = `<span class="a-price-range">${price('$20.00')}${price('$35.50')}</span>`;
     const r = parseProduct(doc(core(range) + delivery('FREE delivery')), 'www.amazon.com');

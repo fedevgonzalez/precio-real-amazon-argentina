@@ -32,7 +32,7 @@ function findPriceTexts(doc) {
 function parseShipping(doc, store) {
   const text = doc.querySelector(DELIVERY)?.textContent ?? '';
   if (IMPORT_FEES.test(text)) return { envio: null, envioIncluyeImportFees: true };
-  if (FREE.test(text)) return { envio: 0, envioIncluyeImportFees: false };
+  if (FREE.test(text)) return { envio: MONEY.test(text) ? null : 0, envioIncluyeImportFees: false };
   const money = text.match(MONEY);
   const envio = money ? parseAmount(money[0], store.locale) : NaN;
   return { envio: Number.isFinite(envio) ? envio : null, envioIncluyeImportFees: false };
