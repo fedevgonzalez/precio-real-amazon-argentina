@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Precio real Amazon Argentina</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; min-width: 300px; padding: 12px; }
+    label { display: block; margin: 10px 0; }
+    input[type=number] { width: 4em; }
+    small { color: #565959; }
+  </style>
+</head>
+<body>
+  <h3>Ajustes</h3>
+  <label>Envíos ya usados este año (cupo de 5)
+    <input id="enviosUsados" type="number" min="0" max="99">
+  </label>
+  <label>Unidades de la misma especie
+    <input id="unidades" type="number" min="1" max="99">
+  </label>
+  <label><input id="ivaReducido" type="checkbox"> El producto tiene IVA reducido (10,5 %)</label>
+  <button id="guardar">Guardar</button>
+  <span id="estado" role="status"></span>
+  <p><small>Estimación orientativa. Verificá siempre con tu courier y con ARCA.</small></p>
+  <script type="module" src="options.js"></script>
+</body>
+</html>
