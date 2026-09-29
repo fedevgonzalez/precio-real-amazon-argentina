@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Precio real Amazon Argentina",
+  "version": "0.1.0",
+  "description": "Muestra en Amazon el costo final en pesos argentinos (dólar blue y tarjeta) con impuestos de importación.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://dolarapi.com/*",
+    "https://api.bluelytics.com.ar/*",
+    "https://api.frankfurter.dev/*",
+    "https://open.er-api.com/*"
+  ],
+  "background": { "service_worker": "src/background/worker.js", "type": "module" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.amazon.com/*", "https://www.amazon.es/*"],
+      "js": ["src/content/loader.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/content/run.js",
+        "src/content/parser.js",
+        "src/content/inject.js",
+        "src/core/calc.js",
+        "src/core/settings.js",
+        "src/core/rules.json"
+      ],
+      "matches": ["https://www.amazon.com/*", "https://www.amazon.es/*"]
+    }
+  ],
+  "options_page": "src/options/options.html",
+  "action": { "default_popup": "src/options/options.html" }
+}
