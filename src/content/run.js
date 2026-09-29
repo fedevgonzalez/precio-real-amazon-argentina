@@ -19,7 +19,7 @@ async function update() {
 
   const res = await chrome.runtime.sendMessage({ type: 'GET_RATES' });
   if (!res?.ok) {
-    mount(document, buildBlock(document, { error: 'NO_RATES' }));
+    safeMount(document, buildBlock(document, { error: 'NO_RATES' }));
     return;
   }
 
@@ -29,7 +29,7 @@ async function update() {
     .filter((p, i, a) => i === 0 || p !== a[0])
     .map((precio) => calc({ precio, envio, moneda: product.moneda }, res.rates, settings, rules));
   if (results.some((r) => !r.ok)) {
-    mount(document, buildBlock(document, { error: 'NO_RATES' }));
+    safeMount(document, buildBlock(document, { error: 'NO_RATES' }));
     return;
   }
 
@@ -39,14 +39,24 @@ async function update() {
   if (product.envioIncluyeImportFees) notes.push({ code: 'ENVIO_CON_IMPORT_FEES' });
   else if (product.envio === null) notes.push({ code: 'ENVIO_NO_INCLUIDO' });
 
-  mount(document, buildBlock(document, { results, rates: res.rates, fetchedAt: res.fetchedAt, notes }));
+  safeMount(document, buildBlock(document, { results, rates: res.rates, fetchedAt: res.fetchedAt, notes }));
 }
 
 let timer;
-const schedule = () => { clearTimeout(timer); timer = setTimeout(() => update().catch((e) => console.warn('[aar]', e)), 300); };
+const schedule = () => {
+  clearTimeout(timer);
+  timer = setTimeout(() => update().catch((e) => { document.getElementById('aar-block')?.remove(); console.warn('[aar]', e); }), 300);
+};
+
+const observer = new MutationObserver(() => schedule());
+
+// mount() hace remove()+insert cuyas mutaciones targetean el padre del ancla (no el bloque),
+// así que el observer las tomaría por ajenas y entraría en update() → mount() → schedule() → …: pausa alrededor.
+function safeMount(doc, block) {
+  observer.disconnect();
+  mount(doc, block);
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+}
 
 schedule();
-new MutationObserver((muts) => {
-  if (muts.every((m) => m.target.closest?.('#aar-block'))) return;
-  schedule();
-}).observe(document.body, { childList: true, subtree: true, characterData: true });
+observer.observe(document.body, { childList: true, subtree: true, characterData: true });
