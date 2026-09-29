@@ -54,8 +54,11 @@ const observer = new MutationObserver(() => schedule());
 // así que el observer las tomaría por ajenas y entraría en update() → mount() → schedule() → …: pausa alrededor.
 function safeMount(doc, block) {
   observer.disconnect();
-  mount(doc, block);
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  try {
+    mount(doc, block);
+  } finally {
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
 }
 
 schedule();
