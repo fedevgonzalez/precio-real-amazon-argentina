@@ -55,8 +55,10 @@ Página carga → `parser` extrae → pide cotizaciones a `rates` → `calc` arm
 - Base FOB = precio + envío, en USD (EUR × EUR/USD si es amazon.es).
 - Con cupo disponible: hasta USD 400 paga solo IVA 21 %; el excedente paga IVA más régimen general (arancel por defecto en `rules.json`, depende de categoría).
 - Cupo agotado: régimen general sobre el total, sin franquicia.
-- Blue: ARS = USD total (con impuestos) × blue.
-- Tarjeta: ARS = USD total (con impuestos) × oficial × (1 + percepciones). Percepciones arrancan en 30 % (Ganancias).
+- Tributos aduaneros (arancel + IVA): se pagan en pesos al courier, dólar oficial, **sin** percepción de tarjeta (`aduanaArs`).
+- Blue: ARS = (precio + envío) × blue + `aduanaArs`.
+- Tarjeta: ARS = (precio + envío) × oficial × (1 + percepción) + `aduanaArs`. La percepción (30 %, RG ARCA 5617/2024 art. 6) aplica solo a lo que cobra Amazon.
+- _Enmienda 2026-09-29: reemplaza la versión inicial que aplicaba blue y percepción sobre el total con impuestos; ver `docs/rules-verification.md`._
 
 ## 3. Errores y casos borde
 

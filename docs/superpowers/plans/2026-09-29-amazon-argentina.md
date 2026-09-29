@@ -217,7 +217,7 @@ git commit -m "docs: verificación de reglas impositivas contra fuentes oficiale
 - Test: `tests/calc.test.js`
 
 **Interfaces:**
-- Consumes: shape de `RULES` (Tarea 1). **Antes de escribir, leer `docs/rules-verification.md`**: si la Tarea 2 decidió cambiar la base de la percepción, ajustar el cálculo de `tarjetaArs` y el test correspondiente antes de continuar.
+- Consumes: shape de `RULES` (Tarea 1). **Ruling del controlador (ver `docs/rules-verification.md`, "Cambio necesario en calc.js")**: la percepción de tarjeta (RG 5617/2024 art. 6) aplica SOLO a lo que cobra Amazon (precio + envío = `fobUsd`), no al arancel ni al IVA de importación, que se pagan en pesos al courier al dólar oficial y sin percepción. Por eso `blueArs` y `tarjetaArs` son costos totales en pesos = (pago a Amazon en pesos) + `aduanaArs`. Fórmulas exactas en el código de abajo; los tests de abajo ya reflejan este ruling.
 - Produces:
 
 ```js
@@ -226,7 +226,8 @@ git commit -m "docs: verificación de reglas impositivas contra fuentes oficiale
  * @typedef {{blue:number, oficial:number, eurUsd?:number}} Rates
  * @typedef {{enviosUsados?:number, ivaReducido?:boolean, unidades?:number}} Settings
  * @typedef {{ok:true, fobUsd:number, franquiciaAplicadaUsd:number, arancelUsd:number,
- *   ivaUsd:number, totalUsd:number, blueArs:number, tarjetaArs:number,
+ *   ivaUsd:number, totalUsd:number, pagoAmazonUsd:number, aduanaArs:number,
+ *   blueArs:number, tarjetaArs:number,
  *   masBarata:'blue'|'tarjeta', avisos:string[]}
  *  | {ok:false, error:'INVALID_INPUT'|'NO_RATES'}} CalcResult
  */
@@ -257,8 +258,10 @@ describe('calc', () => {
     expect(r.arancelUsd).toBe(0);
     expect(r.ivaUsd).toBeCloseTo(23.1);
     expect(r.totalUsd).toBeCloseTo(133.1);
-    expect(r.blueArs).toBe(199650);
-    expect(r.tarjetaArs).toBe(173030);
+    expect(r.pagoAmazonUsd).toBeCloseTo(110);
+    expect(r.aduanaArs).toBe(23100);
+    expect(r.blueArs).toBe(188100);
+    expect(r.tarjetaArs).toBe(166100);
     expect(r.masBarata).toBe('tarjeta');
     expect(r.avisos).toEqual([]);
   });
@@ -268,6 +271,8 @@ describe('calc', () => {
     expect(r.arancelUsd).toBe(0);
     expect(r.ivaUsd).toBeCloseTo(84);
     expect(r.totalUsd).toBeCloseTo(484);
+    expect(r.blueArs).toBe(684000);
+    expect(r.tarjetaArs).toBe(604000);
   });
 
   it('excedente sobre USD 400 paga arancel e IVA sobre (fob + arancel)', () => {
@@ -276,8 +281,9 @@ describe('calc', () => {
     expect(r.arancelUsd).toBeCloseTo(35);
     expect(r.ivaUsd).toBeCloseTo(112.35);
     expect(r.totalUsd).toBeCloseTo(647.35);
-    expect(r.blueArs).toBe(971025);
-    expect(r.tarjetaArs).toBe(841555);
+    expect(r.aduanaArs).toBe(147350);
+    expect(r.blueArs).toBe(897350);
+    expect(r.tarjetaArs).toBe(797350);
   });
 
   it('cupo agotado: régimen general sobre el total', () => {
@@ -286,8 +292,9 @@ describe('calc', () => {
     expect(r.arancelUsd).toBeCloseTo(35);
     expect(r.ivaUsd).toBeCloseTo(28.35);
     expect(r.totalUsd).toBeCloseTo(163.35);
-    expect(r.blueArs).toBe(245025);
-    expect(r.tarjetaArs).toBe(212355);
+    expect(r.aduanaArs).toBe(63350);
+    expect(r.blueArs).toBe(213350);
+    expect(r.tarjetaArs).toBe(193350);
   });
 
   it('con 4 envíos usados todavía hay cupo', () => {
@@ -299,19 +306,22 @@ describe('calc', () => {
     const r = run({ precio: 100, envio: 0, moneda: 'EUR' });
     expect(r.fobUsd).toBeCloseTo(110);
     expect(r.totalUsd).toBeCloseTo(133.1);
-    expect(r.blueArs).toBe(199650);
+    expect(r.blueArs).toBe(188100);
+    expect(r.tarjetaArs).toBe(166100);
   });
 
   it('IVA reducido', () => {
     const r = run({ precio: 100, moneda: 'USD' }, { ivaReducido: true });
     expect(r.ivaUsd).toBeCloseTo(10.5);
     expect(r.totalUsd).toBeCloseTo(110.5);
-    expect(r.blueArs).toBe(165750);
+    expect(r.aduanaArs).toBe(10500);
+    expect(r.blueArs).toBe(160500);
+    expect(r.tarjetaArs).toBe(140500);
   });
 
   it('marca blue como más barata cuando corresponde', () => {
     const r = run({ precio: 100, envio: 10, moneda: 'USD' }, {}, { ...RATES, blue: 1200 });
-    expect(r.blueArs).toBe(159720);
+    expect(r.blueArs).toBe(155100);
     expect(r.masBarata).toBe('blue');
   });
 
@@ -372,8 +382,13 @@ export function calc(item, rates, settings, rules) {
   const ivaUsd = (fobUsd + arancelUsd) * (ivaReducido ? rules.ivaReducido : rules.ivaGeneral);
   const totalUsd = fobUsd + arancelUsd + ivaUsd;
 
-  const blueArs = Math.round(totalUsd * rates.blue);
-  const tarjetaArs = Math.round(totalUsd * rates.oficial * (1 + rules.percepcionTarjeta));
+  // Tributos aduaneros: se pagan en pesos al courier (dólar oficial, sin percepción de tarjeta).
+  const aduanaUsd = arancelUsd + ivaUsd;
+  const aduanaArs = Math.round(aduanaUsd * rates.oficial);
+  // Lo que cobra Amazon (precio + envío): blue = USD comprados al blue; tarjeta = oficial + percepción.
+  // Un solo redondeo por total: se suma sin redondear los pasos intermedios.
+  const blueArs = Math.round(fobUsd * rates.blue + aduanaUsd * rates.oficial);
+  const tarjetaArs = Math.round(fobUsd * rates.oficial * (1 + rules.percepcionTarjeta) + aduanaUsd * rates.oficial);
 
   const avisos = [];
   if (fobUsd > rules.topeFobUsd || unidades > rules.maxUnidades) avisos.push('FUERA_REGIMEN_SIMPLIFICADO');
@@ -381,6 +396,7 @@ export function calc(item, rates, settings, rules) {
   return {
     ok: true,
     fobUsd, franquiciaAplicadaUsd, arancelUsd, ivaUsd, totalUsd,
+    pagoAmazonUsd: fobUsd, aduanaArs,
     blueArs, tarjetaArs,
     masBarata: blueArs <= tarjetaArs ? 'blue' : 'tarjeta',
     avisos,
@@ -928,7 +944,7 @@ import { buildBlock, mount } from '../src/content/inject.js';
 
 const doc = () => new DOMParser().parseFromString('<body><div id="corePrice_feature_div"></div></body>', 'text/html');
 const ok = (blueArs, tarjetaArs, masBarata = 'tarjeta') => ({
-  ok: true, fobUsd: 110, franquiciaAplicadaUsd: 110, arancelUsd: 0, ivaUsd: 23.1, totalUsd: 133.1,
+  ok: true, fobUsd: 110, franquiciaAplicadaUsd: 110, arancelUsd: 0, ivaUsd: 23.1, totalUsd: 133.1, pagoAmazonUsd: 110, aduanaArs: 23100,
   blueArs, tarjetaArs, masBarata, avisos: [],
 });
 const RATES = { blue: 1500, oficial: 1000, eurUsd: 1.1 };
@@ -1052,6 +1068,8 @@ export function buildBlock(doc, { results = [], rates, fetchedAt, notes = [], er
     ['Arancel', USD.format(hi.arancelUsd)],
     ['IVA', USD.format(hi.ivaUsd)],
     ['Total en USD', USD.format(hi.totalUsd)],
+    ['Pago a Amazon (tarjeta / dólares)', USD.format(hi.pagoAmazonUsd)],
+    ['Tributos de aduana (en pesos, al courier)', ARS.format(hi.aduanaArs)],
   ];
   for (const [k, v] of rows) det.appendChild(el(doc, 'div', `${k}: ${v}`));
   if (rates) {
@@ -1061,7 +1079,7 @@ export function buildBlock(doc, { results = [], rates, fetchedAt, notes = [], er
   }
   box.appendChild(det);
 
-  box.appendChild(el(doc, 'div', 'Estimación, puede diferir del cargo final.', 'color:#565959;font-size:11px'));
+  box.appendChild(el(doc, 'div', 'Estimación, puede diferir del cargo final. El arancel real depende del producto.', 'color:#565959;font-size:11px'));
   return box;
 }
 
