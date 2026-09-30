@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { buildBlock, mount, renderSignature } from '../src/content/inject.js';
+import { buildBlock, mount, renderSignature, buildCardLine, mountCardLine } from '../src/content/inject.js';
 
 const doc = () => new DOMParser().parseFromString('<body><div id="corePrice_feature_div"></div></body>', 'text/html');
 const ok = (blueArs, tarjetaArs, masBarata = 'tarjeta') => ({
@@ -111,5 +111,41 @@ describe('renderSignature', () => {
     expect(renderSignature({ ...base, discrepancy: true })).not.toBe(sig);
     expect(renderSignature({ ...base, fetchedAt: 1_700_000_060_001 })).not.toBe(sig); // otro minuto
     expect(renderSignature({ ...base, notes: [] })).not.toBe(sig);
+  });
+});
+
+describe('renglón por tarjeta (búsqueda)', () => {
+  const cardDoc = () => new DOMParser().parseFromString(
+    '<body><div data-component-type="s-search-result"><div data-cy="price-recipe"></div><div data-cy="delivery-recipe"></div></div></body>', 'text/html');
+
+  it('muestra total + impuestos en USD y blue en ARS en una línea, sin tarjeta ni ⚠', () => {
+    const t = buildCardLine(cardDoc(), { results: [ok(199650, 173030)] }).textContent;
+    expect(t).toMatch(/Total \+ imp\.: USD\s?133,10 · Blue: ARS\s?199\.650/);
+    expect(t).not.toMatch(/~|⚠|Tarjeta|tarjeta|173\.030/);
+  });
+
+  it('envío desconocido → "~" delante de los montos', () => {
+    const t = buildCardLine(cardDoc(), { results: [ok(199650, 173030)], envioDesconocido: true }).textContent;
+    expect(t).toMatch(/~USD\s?133,10/);
+    expect(t).toMatch(/Blue: ~ARS\s?199\.650/);
+  });
+
+  it('rango de precios', () => {
+    const lo = ok(100000, 1); lo.totalUsd = 50;
+    const hi = ok(200000, 1); hi.totalUsd = 100;
+    const t = buildCardLine(cardDoc(), { results: [lo, hi] }).textContent;
+    expect(t).toMatch(/USD\s?50,00\s–\sUSD\s?100,00/);
+    expect(t).toMatch(/ARS\s?100\.000\s–\sARS\s?200\.000/);
+  });
+
+  it('se monta debajo del precio y es idempotente; sin precio → false', () => {
+    const d = cardDoc();
+    const card = d.querySelector('[data-component-type="s-search-result"]');
+    expect(mountCardLine(card, buildCardLine(d, { results: [ok(1, 2)] }))).toBe(true);
+    expect(mountCardLine(card, buildCardLine(d, { results: [ok(3, 4)] }))).toBe(true);
+    expect(card.querySelectorAll('.aar-card')).toHaveLength(1);
+    expect(card.querySelector('[data-cy="price-recipe"]').nextElementSibling.className).toBe('aar-card');
+    const vacia = new DOMParser().parseFromString('<body><div id="c"></div></body>', 'text/html').getElementById('c');
+    expect(mountCardLine(vacia, buildCardLine(d, { results: [ok(1, 2)] }))).toBe(false);
   });
 });

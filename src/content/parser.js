@@ -29,8 +29,7 @@ function findPriceTexts(doc) {
   return [];
 }
 
-function parseShipping(doc, store) {
-  const text = doc.querySelector(DELIVERY)?.textContent ?? '';
+function shippingFromText(text, store) {
   if (IMPORT_FEES.test(text)) return { envio: null, envioIncluyeImportFees: true };
   if (FREE.test(text)) return { envio: MONEY.test(text) ? null : 0, envioIncluyeImportFees: false };
   const money = text.match(MONEY);
@@ -55,6 +54,39 @@ export function parseProduct(doc, hostname) {
     ok: true,
     moneda: store.moneda,
     precio: { min: Math.min(...amounts), max: Math.max(...amounts) },
-    ...parseShipping(doc, store),
+    ...shippingFromText(doc.querySelector(DELIVERY)?.textContent ?? '', store),
   };
+}
+
+// --- Página de resultados de búsqueda ---------------------------------------------------------
+const CARD = '[data-component-type="s-search-result"]';
+const CARD_PRICE = '[data-cy="price-recipe"]';
+const CARD_DELIVERY = '[data-cy="delivery-recipe"]';
+
+/** Precio (o rango) y envío de una tarjeta de resultados. Mismo contrato que parseProduct, sin NO_SHIP. */
+function parseCard(card, store) {
+  const root = card.querySelector(CARD_PRICE);
+  if (!root) return { ok: false, error: 'PRICE_NOT_FOUND' };
+  const range = root.querySelector('.a-price-range');
+  const nodes = range
+    ? [...range.querySelectorAll('.a-offscreen')]
+    : [root.querySelector('.a-price:not(.a-text-price) .a-offscreen')].filter(Boolean);
+  if (!nodes.length) return { ok: false, error: 'PRICE_NOT_FOUND' };
+  const texts = nodes.map((n) => n.textContent);
+  if (texts.some((t) => !t.includes(store.symbol))) return { ok: false, error: 'UNEXPECTED_CURRENCY' };
+  const amounts = texts.map((t) => parseAmount(t, store.locale));
+  if (amounts.some((a) => !Number.isFinite(a) || a <= 0)) return { ok: false, error: 'PRICE_NOT_FOUND' };
+  return {
+    ok: true,
+    moneda: store.moneda,
+    precio: { min: Math.min(...amounts), max: Math.max(...amounts) },
+    ...shippingFromText(card.querySelector(CARD_DELIVERY)?.textContent ?? '', store),
+  };
+}
+
+/** Todas las tarjetas de una página de búsqueda: [{card, product}] (product como parseProduct). */
+export function parseSearchCards(doc, hostname) {
+  const store = STORES.find((s) => s.host.test(hostname));
+  if (!store) return [];
+  return [...doc.querySelectorAll(CARD)].map((card) => ({ card, product: parseCard(card, store) }));
 }

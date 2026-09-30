@@ -73,3 +73,28 @@ export function mount(doc, block) {
   anchor.insertAdjacentElement('afterend', block);
   return true;
 }
+
+/**
+ * Renglón compacto para una tarjeta de la página de búsqueda:
+ * "Total + imp.: USD 99,80 · Blue: ARS 150.834". Con envío desconocido, "~" delante de los montos
+ * (el envío no está incluido). Sin ⚠ por tarjeta: sería ruido en una lista.
+ */
+export function buildCardLine(doc, { results, envioDesconocido = false }) {
+  const lo = results[0];
+  const hi = results[results.length - 1];
+  const mark = envioDesconocido ? '~' : '';
+  const range = (fmt, f) => (lo[f] === hi[f] ? `${mark}${fmt.format(lo[f])}` : `${mark}${fmt.format(lo[f])} – ${fmt.format(hi[f])}`);
+  const line = el(doc, 'div', `Total + imp.: ${range(USD, 'totalUsd')} · Blue: ${range(ARS, 'blueArs')}`,
+    'margin:2px 0;font-size:13px;line-height:1.3;color:#067d62;font-weight:600');
+  line.className = 'aar-card';
+  return line;
+}
+
+/** Inserta el renglón debajo del precio de la tarjeta (reemplaza uno previo). false si la tarjeta no tiene precio. */
+export function mountCardLine(card, line) {
+  card.querySelectorAll('.aar-card').forEach((n) => n.remove());
+  const anchor = card.querySelector('[data-cy="price-recipe"]');
+  if (!anchor) return false;
+  anchor.insertAdjacentElement('afterend', line);
+  return true;
+}

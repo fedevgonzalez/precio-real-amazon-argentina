@@ -1,5 +1,5 @@
-import { parseProduct } from './parser.js';
-import { buildBlock, mount, renderSignature } from './inject.js';
+import { parseProduct, parseSearchCards } from './parser.js';
+import { buildBlock, mount, renderSignature, buildCardLine, mountCardLine } from './inject.js';
 import { calc } from '../core/calc.js';
 import { loadSettings } from '../core/settings.js';
 
@@ -14,9 +14,49 @@ let generation = 0;
 // Datos del último cálculo, para el popup (mensaje GET_DETAILS). null si no hay bloque con números.
 let lastDetails = null;
 
+const MAX_CARDS = 100;
+const isSearchPage = () => /^\/s(\/|$)/.test(location.pathname);
+
+// Página de resultados: un renglón por tarjeta con el mismo cálculo que la página de producto.
+async function updateSearch(gen) {
+  lastDetails = null;
+  document.getElementById('aar-block')?.remove();
+  const cards = parseSearchCards(document, location.hostname).slice(0, MAX_CARDS);
+  if (!cards.some((c) => c.product.ok)) return;
+
+  const res = await chrome.runtime.sendMessage({ type: 'GET_RATES' });
+  if (gen !== generation) return;
+  if (!res?.ok) return; // sin cotización no se pinta nada (nunca números inventados)
+  const settings = await loadSettings(storage);
+  if (gen !== generation) return;
+  const base = JSON.stringify([res.rates, settings]);
+
+  observer.disconnect(); // nuestras propias inserciones no deben re-disparar update()
+  try {
+    for (const { card, product } of cards) {
+      if (!product.ok) {
+        card.querySelector('.aar-card')?.remove();
+        delete card.dataset.aarSig;
+        continue;
+      }
+      const sig = base + JSON.stringify([product.precio, product.envio, product.moneda]);
+      if (card.dataset.aarSig === sig && card.querySelector('.aar-card')) continue;
+      const results = [product.precio.min, product.precio.max]
+        .filter((p, i, a) => i === 0 || p !== a[0])
+        .map((precio) => calc({ precio, envio: product.envio ?? 0, moneda: product.moneda }, res.rates, settings, rules));
+      if (results.some((r) => !r.ok)) continue;
+      card.dataset.aarSig = sig;
+      mountCardLine(card, buildCardLine(document, { results, envioDesconocido: product.envio === null }));
+    }
+  } finally {
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+}
+
 async function update() {
   // Token de generación: una respuesta lenta de una variante anterior no debe pisar a la actual.
   const gen = ++generation;
+  if (isSearchPage()) return updateSearch(gen);
   const product = parseProduct(document, location.hostname);
   if (!product.ok) {
     if (product.error === 'NO_SHIP_TO_AR') {
