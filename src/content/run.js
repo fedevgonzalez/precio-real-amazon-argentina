@@ -1,5 +1,5 @@
 import { parseProduct } from './parser.js';
-import { buildBlock, mount } from './inject.js';
+import { buildBlock, mount, renderSignature } from './inject.js';
 import { calc } from '../core/calc.js';
 import { loadSettings } from '../core/settings.js';
 
@@ -9,9 +9,12 @@ const storage = {
 };
 const rules = await (await fetch(chrome.runtime.getURL('src/core/rules.json'))).json();
 
+let lastSignature = null;
+
 async function update() {
   const product = parseProduct(document, location.hostname);
   if (!product.ok) {
+    lastSignature = null;
     document.getElementById('aar-block')?.remove();
     console.warn('[aar] sin cálculo:', product.error);
     return;
@@ -19,7 +22,7 @@ async function update() {
 
   const res = await chrome.runtime.sendMessage({ type: 'GET_RATES' });
   if (!res?.ok) {
-    safeMount(document, buildBlock(document, { error: 'NO_RATES' }));
+    mountIfChanged('error:NO_RATES', () => buildBlock(document, { error: 'NO_RATES' }));
     return;
   }
 
@@ -29,7 +32,7 @@ async function update() {
     .filter((p, i, a) => i === 0 || p !== a[0])
     .map((precio) => calc({ precio, envio, moneda: product.moneda }, res.rates, settings, rules));
   if (results.some((r) => !r.ok)) {
-    safeMount(document, buildBlock(document, { error: 'NO_RATES' }));
+    mountIfChanged('error:NO_RATES', () => buildBlock(document, { error: 'NO_RATES' }));
     return;
   }
 
@@ -48,7 +51,18 @@ async function update() {
   if (product.envioIncluyeImportFees) notes.push({ code: 'ENVIO_CON_IMPORT_FEES' });
   else if (product.envio === null) notes.push({ code: 'ENVIO_NO_INCLUIDO' });
 
-  safeMount(document, buildBlock(document, { results, rates: res.rates, fetchedAt: res.fetchedAt, notes }));
+  mountIfChanged(
+    renderSignature({ product, rates: res.rates, settings, stale: res.stale, discrepancy: res.discrepancy, fetchedAt: res.fetchedAt, notes }),
+    () => buildBlock(document, { results, rates: res.rates, fetchedAt: res.fetchedAt, notes }),
+  );
+}
+
+// No remonta si el render es idéntico al anterior y el bloque sigue en el DOM (F1):
+// las mutaciones ajenas de la página dejan de cerrar el desglose ni rearmar el bloque.
+function mountIfChanged(signature, build) {
+  if (signature === lastSignature && document.getElementById('aar-block')) return;
+  lastSignature = signature;
+  safeMount(document, build());
 }
 
 let timer;

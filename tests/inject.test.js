@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { buildBlock, mount } from '../src/content/inject.js';
+import { buildBlock, mount, renderSignature } from '../src/content/inject.js';
 
 const doc = () => new DOMParser().parseFromString('<body><div id="corePrice_feature_div"></div></body>', 'text/html');
 const ok = (blueArs, tarjetaArs, masBarata = 'tarjeta') => ({
@@ -74,5 +74,43 @@ describe('mount', () => {
   it('sin ancla → false', () => {
     const d = new DOMParser().parseFromString('<body></body>', 'text/html');
     expect(mount(d, buildBlock(d, { error: 'NO_RATES' }))).toBe(false);
+  });
+
+  it('al remontar conserva el desglose abierto (y cerrado se conserva cerrado)', () => {
+    const d = doc();
+    const build = (blue) => buildBlock(d, { results: [ok(blue, blue)], rates: RATES, fetchedAt: Date.now() });
+    mount(d, build(199650));
+    d.querySelector('#aar-block details').open = true;
+    mount(d, build(200000)); // números nuevos → remonte real
+    expect(d.querySelector('#aar-block details').open).toBe(true);
+    d.querySelector('#aar-block details').open = false;
+    mount(d, build(210000));
+    expect(d.querySelector('#aar-block details').open).toBe(false);
+  });
+});
+
+describe('renderSignature', () => {
+  const product = { precio: { min: 100, max: 120 }, envio: 10, envioIncluyeImportFees: false, moneda: 'USD' };
+  const settings = { enviosUsados: 0, ivaReducido: false, unidades: 1 };
+  const base = {
+    product, rates: RATES, settings,
+    stale: false, discrepancy: false, fetchedAt: 1_700_000_000_000,
+    notes: [{ code: 'ENVIO_NO_INCLUIDO' }],
+  };
+
+  it('idéntica si nada cambió; fetchedAt dentro del mismo minuto no cuenta como cambio', () => {
+    expect(renderSignature({ ...base })).toBe(renderSignature({ ...base }));
+    expect(renderSignature({ ...base, fetchedAt: 1_700_000_005_000 })).toBe(renderSignature(base));
+  });
+
+  it('cambia si cambia precio, tasa, settings, stale/discrepancy, minuto o notas', () => {
+    const sig = renderSignature(base);
+    expect(renderSignature({ ...base, product: { ...product, precio: { min: 101, max: 120 } } })).not.toBe(sig);
+    expect(renderSignature({ ...base, rates: { ...RATES, blue: 1501 } })).not.toBe(sig);
+    expect(renderSignature({ ...base, settings: { ...settings, ivaReducido: true } })).not.toBe(sig);
+    expect(renderSignature({ ...base, stale: true })).not.toBe(sig);
+    expect(renderSignature({ ...base, discrepancy: true })).not.toBe(sig);
+    expect(renderSignature({ ...base, fetchedAt: 1_700_000_060_001 })).not.toBe(sig); // otro minuto
+    expect(renderSignature({ ...base, notes: [] })).not.toBe(sig);
   });
 });

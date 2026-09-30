@@ -68,8 +68,31 @@ export function buildBlock(doc, { results = [], rates, fetchedAt, notes = [], er
   return box;
 }
 
+/**
+ * Firma de un render (F1): si no cambió respecto al anterior y #aar-block sigue en el DOM,
+ * no hace falta remontar. fetchedAt se redondea a minuto para no rearmar por reloj.
+ */
+export function renderSignature({ product, rates, settings, stale, discrepancy, fetchedAt, notes }) {
+  return JSON.stringify({
+    min: product.precio?.min,
+    max: product.precio?.max,
+    envio: product.envio,
+    envioIncluyeImportFees: !!product.envioIncluyeImportFees,
+    moneda: product.moneda,
+    rates,
+    settings,
+    stale: !!stale,
+    discrepancy: !!discrepancy,
+    fetchedAt: Math.round(fetchedAt / 60_000),
+    notes,
+  });
+}
+
 export function mount(doc, block) {
-  doc.getElementById('aar-block')?.remove();
+  const prev = doc.getElementById('aar-block');
+  // Al remontar se conserva el estado del desglose: si el bloque viejo estaba abierto, el nuevo también.
+  if (prev?.querySelector('details')?.open) block.querySelector('details')?.setAttribute('open', '');
+  prev?.remove();
   const anchor = doc.querySelector(ANCHORS);
   if (!anchor) return false;
   anchor.insertAdjacentElement('afterend', block);
