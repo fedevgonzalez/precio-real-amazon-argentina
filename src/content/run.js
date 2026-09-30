@@ -68,7 +68,7 @@ async function update() {
 }
 
 // No remonta si el render es idéntico al anterior y el bloque sigue en el DOM (F1):
-// las mutaciones ajenas de la página dejan de cerrar el desglose ni rearmar el bloque.
+// las mutaciones ajenas de la página dejan de cerrar el desglose y de rearmar el bloque.
 function mountIfChanged(signature, build) {
   if (signature === lastSignature && document.getElementById('aar-block')) return;
   lastSignature = signature;
