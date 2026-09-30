@@ -69,13 +69,15 @@ export function buildDetails(doc, details) {
   box.append(blue);
 
   box.append(el(doc, 'p', delAmazon ? 'fuente' : 'fuente estimado',
-    delAmazon ? 'Total informado por Amazon: es lo que cobra en el checkout.' : 'Estimación propia: IVA 21 % sobre precio + envío (arancel máximo si pasa de USD 400).'));
+    delAmazon ? 'Total informado por Amazon: es lo que cobra en el checkout.'
+      : moneda === 'EUR' ? 'Estimación propia: amazon.es descuenta el IVA de España y suma el IVA argentino (21 %) sobre precio neto + envío.'
+        : 'Estimación propia: IVA 21 % sobre precio + envío (arancel máximo si pasa de USD 400).'));
 
   const libro = el(doc, 'dl', 'libro');
   libro.append(
     fila(doc, 'Precio', precio.min === precio.max ? money(precio.min) : `${money(precio.min)} – ${money(precio.max)}`),
     fila(doc, 'Envío', envio === null || envio === undefined ? 'no incluido' : money(envio)),
-    fila(doc, 'Base (precio + envío)', rango(USD, 'fobUsd')),
+    fila(doc, moneda === 'EUR' ? 'Base (precio sin IVA ES + envío)' : 'Base (precio + envío)', rango(USD, 'fobUsd')),
     fila(doc, 'Franquicia aplicada', rango(USD, 'franquiciaAplicadaUsd')),
     fila(doc, 'Arancel estimado', rango(USD, 'arancelUsd')),
     fila(doc, 'IVA estimado', rango(USD, 'ivaUsd')),

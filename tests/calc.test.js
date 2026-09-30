@@ -56,12 +56,19 @@ describe('calc', () => {
     expect(r.franquiciaAplicadaUsd).toBe(100);
   });
 
-  it('EUR se convierte con eurUsd', () => {
+  it('EUR: se descuenta el IVA de España (precio ÷ 1,21) y se convierte con eurUsd', () => {
     const r = run({ precio: 100, envio: 0, moneda: 'EUR' });
-    expect(r.fobUsd).toBeCloseTo(110);
-    expect(r.totalUsd).toBeCloseTo(133.1);
-    expect(r.blueArs).toBe(199650);
-    expect(r.tarjetaArs).toBe(173030);
+    expect(r.fobUsd).toBeCloseTo(100 / 1.21 * 1.1);
+    expect(r.totalUsd).toBeCloseTo(110); // (100 ÷ 1,21) × 1,21 = 100 EUR → × 1,1
+    expect(r.blueArs).toBe(165000);
+    expect(r.tarjetaArs).toBe(143000);
+  });
+
+  it('EUR contra dos checkouts reales de amazon.es (Importe total)', () => {
+    const eur = { blue: 1500, oficial: 1000, eurUsd: 1 };
+    const total = (precio, envio) => calc({ precio, envio, moneda: 'EUR' }, eur, S, RULES).totalUsd;
+    expect(total(39.99, 30.5)).toBeCloseTo(76.9, 1); // checkout: 33,05 + 30,50 + 13,35 = 76,90 €
+    expect(Math.abs(total(89.99, 30.33) / 126.16 - 1)).toBeLessThan(0.01); // checkout: 74,37 + 30,33 + 21,46 = 126,16 € (estimación +0,4 %)
   });
 
   it('IVA reducido', () => {

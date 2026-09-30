@@ -13,7 +13,10 @@ export function calc(item, rates, settings, rules) {
   }
 
   const { enviosUsados = 0, ivaReducido = false, unidades = 1 } = settings ?? {};
-  const fobUsd = (precio + envio) * (moneda === 'EUR' ? rates.eurUsd : 1);
+  // amazon.es publica el precio con el IVA de España y, al enviar a Argentina, lo descuenta (exportación):
+  // el checkout cobra precio ÷ 1,21 + envío + IVA argentino. Sin esto se pagaría el IVA dos veces.
+  const neto = moneda === 'EUR' ? precio / (1 + rules.ivaEspana) : precio;
+  const fobUsd = (neto + envio) * (moneda === 'EUR' ? rates.eurUsd : 1);
   const conCupo = enviosUsados < rules.cupoEnvios;
   const franquiciaAplicadaUsd = conCupo ? Math.min(fobUsd, rules.franquiciaUsd) : 0;
   const arancelUsd = (fobUsd - franquiciaAplicadaUsd) * rules.arancelGeneral;

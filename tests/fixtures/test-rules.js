@@ -4,6 +4,7 @@ export const RULES = {
   cupoEnvios: 5,
   ivaGeneral: 0.21,
   ivaReducido: 0.105,
+  ivaEspana: 0.21,
   arancelGeneral: 0.35,
   topeFobUsd: 3000,
   maxUnidades: 3,
