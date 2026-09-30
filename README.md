@@ -39,3 +39,7 @@ Editá `src/core/rules.json` (franquicia, alícuotas, percepción de tarjeta) y 
 Solo amazon.com y amazon.es, envío por courier a domicilio. Fuera de alcance: otras tiendas Amazon, casilleros, cálculo automático del cupo, detección de categoría, Firefox/Safari.
 
 El cálculo separa lo que cobra Amazon (blue, o tarjeta con la percepción del 30 % sobre precio + envío) de los tributos aduaneros (arancel + IVA), que se pagan en pesos al courier al dólar oficial, sin percepción; ver `docs/rules-verification.md`.
+
+## Privacidad y licencia
+
+Política de privacidad: [`privacy-policy.md`](privacy-policy.md). Licencia MIT.

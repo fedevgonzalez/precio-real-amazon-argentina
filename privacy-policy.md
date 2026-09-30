@@ -35,4 +35,4 @@ Los valores son estimaciones orientativas. Lo que cobra Amazon en el checkout es
 
 ## Cambios y contacto
 
-Si esta política cambia, se actualiza la fecha de arriba. Contacto: [completar con tu correo o la URL del repositorio antes de publicar].
+Si esta política cambia, se actualiza la fecha de arriba. Contacto: abrí un issue en https://github.com/fedevgonzalez/precio-real-amazon-argentina/issues.
