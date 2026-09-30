@@ -15,7 +15,7 @@ que el texto citado aparece en la respuesta del fetch.
 | Arancel general por defecto sobre el excedente | `arancelGeneral: 0.35` | Dec. 1065/2024 y 604/2026: el excedente "quedará sujeto al pago de los tributos que graven la importación para consumo en el régimen general" (URLs de arriba). La alícuota concreta depende de la posición NCM (AEC Mercosur); no se leyó una fuente oficial del rango 0-35 % | Parcial: el régimen general está verificado; el 35 % como techo, no | Mantener 0.35 como valor conservador, ver decisión 1 |
 | Tope USD 3.000 FOB por envío | `topeFobUsd: 3000` | RG ARCA 5884/2026 art. 2 (Correo/puerta a puerta): https://www.argentina.gob.ar/normativa/nacional/norma-428387/texto ; PSP/Courier: https://www.afip.gob.ar/envios-internacionales/courier/importacion/pequenios-envios.asp ("inferior o igual a USD 3.000 por envío") | Sí | Ninguna |
 | Máximo 3 unidades por especie | `maxUnidades: 3` | RG 5884/2026 art. 2 ("hasta TRES (3) unidades de la misma especie"); ARCA pequeños envíos (Courier) | Sí | Ninguna |
-| Percepción de tarjeta 30 % (Ganancias / Bienes Personales) | `percepcionTarjeta: 0.3` | RG ARCA 5617/2024 art. 6: https://www.argentina.gob.ar/normativa/nacional/norma-407430/texto ("alícuota del TREINTA POR CIENTO (30%)") | Sí (alícuota); la base se trata en la decisión 2 | Ninguna en rules.json |
+| Percepción de tarjeta 30 % (Ganancias / Bienes Personales) | (ya no se usa: la tarjeta no se muestra) | RG ARCA 5617/2024 art. 6: https://www.argentina.gob.ar/normativa/nacional/norma-407430/texto ("alícuota del TREINTA POR CIENTO (30%)") | Sí (alícuota); la base se trata en la decisión 2 | Ninguna en rules.json |
 | Impuesto PAIS | (no está en rules.json; correcto) | Ley 27.541 art. 35 vigente hasta el 22-12-2024 inclusive; ARCA: https://www.argentina.gob.ar/noticias/se-elimina-el-pago-cuenta-del-impuesto-pais-para-importaciones ("el próximo 22 de diciembre -inclusive- vence la vigencia del Impuesto PAIS"). La RG 5617/2024 deja solo la percepción del 30 % | Sí, con matiz: no fue derogado, venció por su plazo | Ninguna |
 
 Fuente adicional: Decreto 604/2026 art. 3 deroga el art. 8 del Dec. 161/99 (tasa unificada del 50 % postal), lo que unifica Correo y Courier. Boletín Oficial: https://www.boletinoficial.gob.ar/detalleAviso/primera/344470/20260717 (aparece en resultados de búsqueda; el texto leído fue el de argentina.gob.ar).
@@ -29,27 +29,11 @@ Resultado: `rules.json` no requiere cambios. `npm test` no se corrió porque no 
 - La UI debe indicar que es una estimación máxima y que el arancel real depende del producto.
 - Fuera del modelo y no verificado: tasa de estadística 3 % sobre el excedente y percepciones de IVA/Ganancias del régimen general de importación. Quedan como limitación documentada.
 
-## Decisión 2: base de la percepción de tarjeta
+## Cómo se cobra realmente (actualizado 2026-09-30)
 
-- RG 5617/2024 art. 6 aplica el 30 % "sobre el importe total de cada operación alcanzada", en pesos, para consumos en moneda extranjera con tarjeta emitida en Argentina (art. 1 incluye compras a distancia en moneda extranjera). La base es lo que efectivamente se paga con la tarjeta: el cargo de Amazon (precio + envío + impuestos que Amazon cobre).
-- Los tributos aduaneros (derecho de importación, IVA de importación) no los cobra Amazon: los cobra el courier / Correo en pesos. Sobre ese pago no aplica la percepción del art. 6, salvo que una plataforma los cobre con tarjeta (la RG 5884/2026 permite al Correo acordar el pago anticipado con plataformas; no consta que Amazon lo haga).
-- Conclusión: el spec (percepción sobre el total con impuestos) difiere de la norma y de la práctica. La percepción se aplica solo a precio + envío pagado a Amazon.
-- No verificado: la cotización con la que el courier convierte los tributos a pesos. Solo se encontró la regla de la RG 5616 para facturación (divisa vendedor BNA del día hábil anterior), no específica de aduana. Se usa el dólar oficial como aproximación y se marca como estimación.
-- No verificado: si el flete de Amazon integra el FOB o solo el valor CIF (base del IVA). Se mantiene el supuesto del plan y se marca como estimación.
-- No verificado: que el courier cobre los tributos en pesos al entregar. Es consistente con las páginas de ARCA leídas (el Correo cobra tasas de servicio y guarda) y con que son obligaciones fiscales locales, pero no se leyó un artículo que lo diga expresamente.
-
-## Estado de calc.js (implementado)
-
-El plan original calculaba `tarjetaArs = round(totalUsd * oficial * (1 + percepcionTarjeta))` con `totalUsd = fob + arancel + iva`, es decir con percepción sobre el total con impuestos. Eso ya se corrigió según la Decisión 2; `src/core/calc.js` hoy implementa:
-
-1. `pagoAmazonUsd = fobUsd` (precio + envío cobrado por Amazon, lo que va a la tarjeta).
-2. `aduanaArs = round((arancelUsd + ivaUsd) * oficial)`: tributos pagados en pesos al courier, sin percepción. Expuesto como campo del resultado.
-3. `tarjetaArs = round(pagoAmazonUsd * oficial * (1 + percepcionTarjeta) + aduanaArs)`. La percepción NO se aplica a arancel ni IVA.
-4. `blueArs = round(fobUsd * blue + aduanaArs)`.
-
-O sea: `tarjetaArs` y `blueArs` ya incluyen `aduanaArs`; son el costo final en ARS por cada vía de pago (no hay que sumar la aduana encima).
-
-Ejemplo (fob 110 USD con cupo disponible, oficial 1000, percepción 30 %): dentro de la franquicia el arancel es 0 y queda solo el IVA (21 % de 110 = 23,10 USD), entonces `aduanaArs = 23.100`, `tarjetaArs = 110.000 × 1,3 + 23.100 = 166.100` y, con blue 1500, `blueArs = 110 × 1.500 + 23.100 = 188.100`. Está cubierto por `tests/calc.test.js` ("dentro de franquicia: solo IVA").
-
-La UI muestra la nota "Estimación, puede diferir del cargo final. El arancel real depende del producto."
+- **Amazon cobra todo junto en el checkout:** producto + envío + "cargos de importación" (capturas de Amazon: "Envío de AmazonGlobal", "Cargos estimados de importación", "Total"). Por eso **blue = total con impuestos × blue**, sin pagos aparte al courier. La cuenta con tarjeta (dólar oficial + 30 % de percepción, RG ARCA 5617/2024 art. 6) se descartó del producto: no se calcula ni se muestra.
+- **Si la página trae el total de Amazon** (panel `#amazonGlobal_feature_div`, en amazon.com) la extensión lo usa tal cual: precio + "US$X de cargos de envío e importación". Comparación real: Baseus US$ 61,11 y Raycon US$ 143,57 coinciden con la estimación propia (IVA 21 % sobre precio + envío); un teclado de US$ 119,99 da US$ 150,74 en Amazon contra 145,19 propio, y una notebook de US$ 3.499,99 da US$ 4.910,19 contra 5.547,83 propio (arancel máximo de 35 %). Amazon aplica aranceles por categoría que la extensión no conoce.
+- **Sin ese panel** (amazon.es, tarjetas de la lista de amazon.com hasta que se lee la página de cada producto) se usa la estimación propia y se marca con `~`.
 - **amazon.es descuenta el IVA de España.** El precio publicado incluye el 21 % de IVA español; al enviar a Argentina (exportación) el checkout cobra "Productos" = precio ÷ 1,21, más envío, más "Cargos de importación" (≈ 21 % argentino sobre precio neto + envío). Dos checkouts reales lo confirman: 39,99 € → Productos 33,05 €, total 76,90 € (la estimación da 76,89 €); 89,99 € → Productos 74,37 €, total 126,16 € (la estimación da 126,69 €, +0,4 %). Límite: productos con IVA español reducido (libros 4 %, alimentos 10 %) se subestiman.
+- **Cupo de 5 envíos y franquicia de USD 400:** siguen vigentes en la página oficial de ARCA. Nota del 2-jul-2026 (El Destape): ARCA proyecta eliminar el límite de 5 envíos y que los marketplaces (Amazon, en prueba piloto) cobren los impuestos al comprar; es un proyecto, no una norma vigente. Para saber cuántos envíos usaste: ARCA con clave fiscal, servicio "Courier - Envíos personales" (muestra "Cupo disponible para el período").
+- **IVA reducido 10,5 %:** aplica a computadoras portátiles, notebooks, netbooks y tablets importadas (fuentes secundarias); la lista exacta depende de la posición arancelaria. Es un interruptor manual en el popup.

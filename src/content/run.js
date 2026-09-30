@@ -160,12 +160,11 @@ async function update() {
   }
 
   const notes = [];
-  // Nota de cotización vieja: stale (blue/oficial de caché) o un eurUsd reusado cuando el producto es en EUR.
+  // Nota de cotización vieja: el blue salió de caché, o un eurUsd reusado cuando el producto es en EUR.
   const eurStale = res.staleRates?.includes('eurUsd') && product.moneda === 'EUR';
   if (res.stale || eurStale) {
     const edades = [
       res.stale ? res.ratesAt?.blue ?? res.fetchedAt : Infinity,
-      res.stale ? res.ratesAt?.oficial ?? res.fetchedAt : Infinity,
       eurStale ? res.ratesAt?.eurUsd ?? res.fetchedAt : Infinity,
     ];
     notes.push({ code: 'STALE_RATES', minutes: Math.round((Date.now() - Math.min(...edades)) / 60000) });

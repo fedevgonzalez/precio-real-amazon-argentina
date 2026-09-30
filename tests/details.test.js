@@ -5,11 +5,11 @@ import { buildDetails, EMPTY_TEXT } from '../src/options/details.js';
 const doc = () => new DOMParser().parseFromString('<body></body>', 'text/html');
 const result = {
   ok: true, fobUsd: 110, franquiciaAplicadaUsd: 110, arancelUsd: 0, ivaUsd: 23.1, totalUsd: 133.1,
-  fuente: 'estimado', blueArs: 199650, tarjetaArs: 173030, masBarata: 'tarjeta', avisos: [],
+  fuente: 'estimado', blueArs: 199650, avisos: [],
 };
 const details = (over = {}) => ({
   moneda: 'USD', precio: { min: 100, max: 100 }, envio: 10, envioIncluyeImportFees: false,
-  results: [result], rates: { blue: 1500, oficial: 1000, eurUsd: 1.1 }, fetchedAt: 1_700_000_000_000, notes: [], ...over,
+  results: [result], rates: { blue: 1500, eurUsd: 1.1 }, fetchedAt: 1_700_000_000_000, notes: [], ...over,
 });
 const real = { ...result, fuente: 'amazon' };
 
@@ -44,7 +44,7 @@ describe('buildDetails', () => {
   });
 
   it('nunca muestra tarjeta ni dólar tarjeta', () => {
-    expect(buildDetails(doc(), details()).textContent).not.toMatch(/tarjeta|Tarjeta|173\.030/);
+    expect(buildDetails(doc(), details()).textContent).not.toMatch(/tarjeta|Tarjeta/);
   });
 
   it('rango de variantes: una línea con ambos extremos', () => {
@@ -80,7 +80,7 @@ describe('buildDetails', () => {
   it('sin avisos no hay lista; las tasas van en el pie', () => {
     const b = buildDetails(doc(), details({ results: [real] }));
     expect(b.querySelector('.avisos')).toBeNull();
-    expect(b.querySelector('.tasas').textContent).toMatch(/Blue 1\.500 · Oficial 1\.000 · EUR\/USD 1,1 · /);
+    expect(b.querySelector('.tasas').textContent).toMatch(/Blue 1\.500 · EUR\/USD 1,1 · /);
   });
 
   it('una nota con HTML no crea elementos', () => {

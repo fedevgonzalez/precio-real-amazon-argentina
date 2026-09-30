@@ -8,6 +8,5 @@ export const RULES = {
   arancelGeneral: 0.35,
   topeFobUsd: 3000,
   maxUnidades: 3,
-  percepcionTarjeta: 0.3,
   cache: { minutos: 10, timeoutMs: 50, discrepanciaMax: 0.05, reintentoParcialMs: 1000 },
 };

@@ -8,7 +8,7 @@ export function calc(item, rates, settings, rules) {
   if (!valid) return { ok: false, error: 'INVALID_INPUT' };
 
   const pos = (v) => Number.isFinite(v) && v > 0;
-  if (!pos(rates?.blue) || !pos(rates?.oficial) || (moneda === 'EUR' && !pos(rates.eurUsd))) {
+  if (!pos(rates?.blue) || (moneda === 'EUR' && !pos(rates.eurUsd))) {
     return { ok: false, error: 'NO_RATES' };
   }
 
@@ -27,9 +27,8 @@ export function calc(item, rates, settings, rules) {
   const usaAmazon = Number.isFinite(amazonTotal) && amazonTotal > 0;
   const totalUsd = usaAmazon ? amazonTotal * conv : fobUsd + arancelUsd + ivaUsd;
 
-  // Blue = esos USD comprados al blue; tarjeta = dólar oficial + percepción. Un solo redondeo por total.
+  // Blue = esos USD comprados al blue. Un solo redondeo por total.
   const blueArs = Math.round(totalUsd * rates.blue);
-  const tarjetaArs = Math.round(totalUsd * rates.oficial * (1 + rules.percepcionTarjeta));
 
   const avisos = [];
   if (fobUsd > rules.topeFobUsd || unidades > rules.maxUnidades) avisos.push('FUERA_REGIMEN_SIMPLIFICADO');
@@ -40,8 +39,7 @@ export function calc(item, rates, settings, rules) {
     moneda,
     totalMoneda: totalUsd / conv, // total en la moneda del producto (EUR en amazon.es)
     fuente: usaAmazon ? 'amazon' : 'estimado',
-    blueArs, tarjetaArs,
-    masBarata: blueArs <= tarjetaArs ? 'blue' : 'tarjeta',
+    blueArs,
     avisos,
   };
 }

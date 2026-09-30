@@ -106,7 +106,7 @@ export function buildDetails(doc, details) {
   if (rates) {
     const hora = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
     const eur = rates.eurUsd ? ` · EUR/USD ${NUM.format(rates.eurUsd)}` : '';
-    box.append(el(doc, 'p', 'tasas', `Blue ${NUM.format(rates.blue)} · Oficial ${NUM.format(rates.oficial)}${eur} · ${hora}`));
+    box.append(el(doc, 'p', 'tasas', `Blue ${NUM.format(rates.blue)}${eur} · ${hora}`));
   }
   return box;
 }

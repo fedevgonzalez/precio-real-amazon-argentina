@@ -3,10 +3,6 @@ export const SOURCES = {
     { url: 'https://dolarapi.com/v1/dolares/blue', pick: (j) => j?.venta },
     { url: 'https://api.bluelytics.com.ar/v2/latest', pick: (j) => j?.blue?.value_sell },
   ],
-  oficial: [
-    { url: 'https://dolarapi.com/v1/dolares/oficial', pick: (j) => j?.venta },
-    { url: 'https://api.bluelytics.com.ar/v2/latest', pick: (j) => j?.oficial?.value_sell },
-  ],
   eurUsd: [
     { url: 'https://api.frankfurter.dev/v1/latest?base=EUR&symbols=USD', pick: (j) => j?.rates?.USD },
     { url: 'https://open.er-api.com/v6/latest/EUR', pick: (j) => j?.rates?.USD },
@@ -43,19 +39,19 @@ async function resolveRate(name, fetchFn, rules) {
 export async function getRates({ fetchFn, storage, rules, now = Date.now }) {
   const cached = await storage.get('rates');
   const ttl = rules.cache.minutos * 60_000;
-  const names = ['blue', 'oficial', 'eurUsd'];
+  const names = ['blue', 'eurUsd'];
   // Timestamp por tasa; una caché vieja (solo fetchedAt) cuenta como si todas fueran de fetchedAt.
   const cachedAt = (n) => cached?.ratesAt?.[n] ?? (cached?.rates?.[n] ? cached.fetchedAt : undefined);
 
   // Vigente solo si está completa: sin eurUsd hay que reintentar (amazon.es quedaría sin conversión todo el TTL).
   const completa = () => names.every((n) => cached?.rates?.[n]);
-  if (completa() && now() - Math.min(cachedAt('blue'), cachedAt('oficial')) < ttl) {
+  if (completa() && now() - cachedAt('blue') < ttl) {
     const ratesAt = Object.fromEntries(names.map((n) => [n, cachedAt(n)]));
     // Una tasa puntual puede ser más vieja que el TTL (su fuente viene cayendo): se reporta como reusada.
     const staleRates = names.filter((n) => now() - cachedAt(n) >= ttl);
     return {
       ok: true, rates: cached.rates, ratesAt, staleRates,
-      fetchedAt: Math.min(ratesAt.blue, ratesAt.oficial),
+      fetchedAt: ratesAt.blue,
       stale: staleRates.some((n) => n !== 'eurUsd'),
       discrepancy: !!cached.discrepancy,
     };
@@ -64,12 +60,12 @@ export async function getRates({ fetchFn, storage, rules, now = Date.now }) {
   // Caché incompleta que ya se intentó completar hace poco: responder con lo cacheado
   // sin volver a martillar las 6 consultas por cada GET_RATES (fuentes caídas).
   if (cached && !completa() && now() - (cached.lastAttemptAt ?? 0) < rules.cache.reintentoParcialMs) {
-    if (!cached.rates?.blue || !cached.rates?.oficial) return { ok: false, error: 'NO_RATES' };
+    if (!cached.rates?.blue) return { ok: false, error: 'NO_RATES' };
     const ratesAt = Object.fromEntries(names.filter((n) => cached.rates[n]).map((n) => [n, cachedAt(n)]));
     const staleRates = names.filter((n) => cached.rates[n] && now() - cachedAt(n) >= ttl);
     return {
       ok: true, rates: cached.rates, ratesAt, staleRates,
-      fetchedAt: Math.min(ratesAt.blue, ratesAt.oficial),
+      fetchedAt: ratesAt.blue,
       stale: staleRates.some((n) => n !== 'eurUsd'),
       discrepancy: !!cached.discrepancy,
     };
@@ -93,11 +89,11 @@ export async function getRates({ fetchFn, storage, rules, now = Date.now }) {
     }
   });
 
-  if (!rates.blue || !rates.oficial) return { ok: false, error: 'NO_RATES' };
+  if (!rates.blue) return { ok: false, error: 'NO_RATES' };
 
   const stale = staleRates.some((n) => n !== 'eurUsd');
   if (staleRates.length) discrepancy ||= !!cached.discrepancy;
-  const fetchedAt = Math.min(ratesAt.blue, ratesAt.oficial);
+  const fetchedAt = ratesAt.blue;
   await storage.set('rates', { rates, ratesAt, fetchedAt, discrepancy, lastAttemptAt: now() });
   return { ok: true, rates, ratesAt, fetchedAt, stale, staleRates, discrepancy };
 }

@@ -3,11 +3,11 @@ import { describe, it, expect } from 'vitest';
 import { buildBlock, mount, renderSignature, buildCardLine, mountCardLine } from '../src/content/inject.js';
 
 const doc = () => new DOMParser().parseFromString('<body><div id="corePrice_feature_div"></div></body>', 'text/html');
-const ok = (blueArs, tarjetaArs, masBarata = 'tarjeta') => ({
+const ok = (blueArs) => ({
   ok: true, fobUsd: 110, franquiciaAplicadaUsd: 110, arancelUsd: 0, ivaUsd: 23.1, totalUsd: 133.1, fuente: 'amazon',
-  blueArs, tarjetaArs, masBarata, avisos: [],
+  blueArs, avisos: [],
 });
-const RATES = { blue: 1500, oficial: 1000, eurUsd: 1.1 };
+const RATES = { blue: 1500, eurUsd: 1.1 };
 
 describe('buildBlock (bloque mínimo)', () => {
   it('muestra solo total + impuestos en USD y blue en ARS', () => {
@@ -21,7 +21,7 @@ describe('buildBlock (bloque mínimo)', () => {
 
   it('nunca muestra tarjeta, "más barata", desglose ni el aviso fijo', () => {
     const b = buildBlock(doc(), { results: [ok(199650, 173030)], notes: [{ code: 'ENVIO_NO_INCLUIDO' }] });
-    expect(b.textContent).not.toMatch(/Tarjeta|tarjeta|Más barata|desglose|Estimación|173\.030/);
+    expect(b.textContent).not.toMatch(/Tarjeta|tarjeta|Más barata|desglose|Estimación/);
     expect(b.querySelector('details')).toBeNull();
   });
 
@@ -162,7 +162,7 @@ describe('renglón por tarjeta (búsqueda)', () => {
   it('muestra total + impuestos en USD y blue en ARS en una línea, sin tarjeta ni ⚠', () => {
     const t = buildCardLine(cardDoc(), { results: [{ ...ok(199650, 173030), fuente: 'estimado' }] }).textContent;
     expect(t).toMatch(/Total \+ imp\.: ~USD\s?133,10Blue: ~ARS\s?199\.650/);
-    expect(t).not.toMatch(/⚠|Tarjeta|tarjeta|173\.030/);
+    expect(t).not.toMatch(/⚠|Tarjeta|tarjeta/);
   });
 
   it('con el total real de Amazon (fuente amazon) el renglón va sin "~"', () => {
