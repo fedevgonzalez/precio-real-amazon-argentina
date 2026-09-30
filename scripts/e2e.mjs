@@ -44,17 +44,20 @@ for (const url of urls) {
   console.log(`  texto: ${block ?? 'no apareció #aar-block'}`);
   await page.screenshot({ path: `.tmp/e2e-${n}.png` });
 
-  const fixture = await page.evaluate(() =>
-    ['#corePrice_feature_div', '#mir-layout-DELIVERY_BLOCK']
+  const fixture = await page.evaluate(() => {
+    // Mismos candidatos que PRICE_ROOTS del parser: el primer bloque de precio presente.
+    const price = ['#corePrice_feature_div', '#corePriceDisplay_desktop_feature_div', '#apex_desktop']
       .map((s) => document.querySelector(s)?.outerHTML ?? '')
-      .join('\n'),
-  );
-  // Un fixture vacío (captcha, página sin precio) no se guarda para no pisar
-  // un fixture real bueno de una corrida anterior.
-  if (fixture.trim() === '') {
-    console.log('  fixture vacío: no se guarda (¿captcha o página sin precio?)');
+      .find((html) => html.trim() !== '');
+    const delivery = document.querySelector('#mir-layout-DELIVERY_BLOCK, #deliveryBlockMessage')?.outerHTML ?? '';
+    return { price: price ?? '', delivery };
+  });
+  // Sin bloque de precio no hay fixture útil: no se guarda para no pisar un real-N.html
+  // bueno de una corrida anterior (captcha, página sin precio).
+  if (fixture.price === '') {
+    console.log('  fixture sin precio: no se guarda (¿captcha o página sin precio?)');
   } else {
-    fs.writeFileSync(`tests/fixtures/real-${n}.html`, `<body>${fixture}</body>`);
+    fs.writeFileSync(`tests/fixtures/real-${n}.html`, `<body>${fixture.price}\n${fixture.delivery}</body>`);
   }
   await page.close();
 }
