@@ -10,8 +10,11 @@ const storage = {
 const rules = await (await fetch(chrome.runtime.getURL('src/core/rules.json'))).json();
 
 let lastSignature = null;
+let generation = 0;
 
 async function update() {
+  // Token de generación: una respuesta lenta de una variante anterior no debe pisar a la actual.
+  const gen = ++generation;
   const product = parseProduct(document, location.hostname);
   if (!product.ok) {
     lastSignature = null;
@@ -21,12 +24,14 @@ async function update() {
   }
 
   const res = await chrome.runtime.sendMessage({ type: 'GET_RATES' });
+  if (gen !== generation) return;
   if (!res?.ok) {
     mountIfChanged('error:NO_RATES', () => buildBlock(document, { error: 'NO_RATES' }));
     return;
   }
 
   const settings = await loadSettings(storage);
+  if (gen !== generation) return;
   const envio = product.envio ?? 0;
   const results = [product.precio.min, product.precio.max]
     .filter((p, i, a) => i === 0 || p !== a[0])
