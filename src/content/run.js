@@ -243,5 +243,8 @@ function safeMount(doc, block) {
   }
 }
 
+// Un cambio de ajustes en el popup recalcula esta pestaña sin esperar a que la página cambie.
+chrome.storage.onChanged.addListener((cambios, area) => { if (area === 'sync' && cambios.settings) schedule(); });
+
 schedule();
 observer.observe(document.body, { childList: true, subtree: true, characterData: true });

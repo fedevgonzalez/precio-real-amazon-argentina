@@ -7,21 +7,27 @@ const storage = {
 };
 const $ = (id) => document.getElementById(id);
 
-const s = await loadSettings(storage);
-$('enviosUsados').value = s.enviosUsados;
-$('unidades').value = s.unidades;
-$('ivaReducido').checked = s.ivaReducido;
+function mostrar(s) {
+  $('enviosUsados').value = s.enviosUsados;
+  $('unidades').value = s.unidades;
+  $('ivaReducido').checked = s.ivaReducido;
+}
+mostrar(await loadSettings(storage));
 
-$('guardar').addEventListener('click', async () => {
+// Guardado automático: cada cambio se sanea, se guarda y se refleja sin botón.
+let aviso;
+async function guardar() {
   const saved = await saveSettings(storage, {
     enviosUsados: $('enviosUsados').value,
     unidades: $('unidades').value,
     ivaReducido: $('ivaReducido').checked,
   });
-  $('enviosUsados').value = saved.enviosUsados;
-  $('unidades').value = saved.unidades;
-  $('estado').textContent = ' Guardado';
-});
+  mostrar(saved);
+  $('estado').textContent = 'Guardado';
+  clearTimeout(aviso);
+  aviso = setTimeout(() => { $('estado').textContent = ''; }, 1600);
+}
+for (const id of ['enviosUsados', 'unidades', 'ivaReducido']) $(id).addEventListener('change', guardar);
 
 // Detalle del producto abierto: se lo pedimos al content script de la pestaña activa.
 async function loadDetails() {

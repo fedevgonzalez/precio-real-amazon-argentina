@@ -2,28 +2,45 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Precio real Amazon Argentina</title>
-  <style>
-    body { font: 14px system-ui, sans-serif; min-width: 340px; padding: 12px; }
-    label { display: block; margin: 10px 0; }
-    input[type=number] { width: 4em; }
-    small { color: #565959; }
-    #aar-details { border: 1px solid #067d62; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; line-height: 1.5; }
-  </style>
+  <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <div id="detalle"></div>
-  <h3>Ajustes</h3>
-  <label>Envíos ya usados este año (cupo de 5)
-    <input id="enviosUsados" type="number" min="0" max="99">
-  </label>
-  <label>Unidades de la misma especie
-    <input id="unidades" type="number" min="1" max="99">
-  </label>
-  <label><input id="ivaReducido" type="checkbox"> El producto tiene IVA reducido (10,5 %)</label>
-  <button id="guardar">Guardar</button>
-  <span id="estado" role="status"></span>
-  <p><small>Estimación orientativa. Verificá siempre con tu courier y con ARCA.</small></p>
+  <main class="ticket">
+    <header class="cabecera">
+      <h1>Precio real · Argentina</h1>
+    </header>
+
+    <div id="detalle" aria-live="polite"></div>
+
+    <section class="ajustes" aria-labelledby="h-ajustes">
+      <div class="ajustes-cab">
+        <h2 id="h-ajustes">Ajustes</h2>
+        <span id="estado" role="status"></span>
+      </div>
+
+      <div class="campo">
+        <label for="enviosUsados">Envíos usados este año</label>
+        <input id="enviosUsados" type="number" inputmode="numeric" min="0" max="99" aria-describedby="d-envios">
+        <small id="d-envios">Con 5 se pierde la franquicia de USD 400.</small>
+      </div>
+
+      <div class="campo">
+        <label for="unidades">Unidades iguales en el pedido</label>
+        <input id="unidades" type="number" inputmode="numeric" min="1" max="99" aria-describedby="d-unidades">
+        <small id="d-unidades">Más de 3 sale del régimen simplificado.</small>
+      </div>
+
+      <div class="campo">
+        <label for="ivaReducido">IVA reducido 10,5 %</label>
+        <input id="ivaReducido" type="checkbox" role="switch" aria-describedby="d-iva">
+        <small id="d-iva">Notebooks, tablets y similares. Apagado: 21 %.</small>
+      </div>
+    </section>
+
+    <p class="pie">Estimación orientativa. Lo que cobra Amazon en el checkout manda.</p>
+  </main>
   <script type="module" src="options.js"></script>
 </body>
 </html>
