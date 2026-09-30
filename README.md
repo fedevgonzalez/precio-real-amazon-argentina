@@ -6,7 +6,7 @@ Extensión de Chrome/Edge que muestra, en amazon.com y amazon.es, el costo final
 
 ## Instalación
 
-1. `npm install` (solo necesario para correr los tests).
+1. `npm install` (necesario para correr los tests y el e2e).
 2. Abrí `chrome://extensions` (o `edge://extensions`) y activá **Modo desarrollador**.
 3. **Cargar descomprimida** → elegí esta carpeta.
 
@@ -19,7 +19,7 @@ Abrí un producto en amazon.com o amazon.es: aparece el bloque "Precio real en A
 Clic en el ícono de la extensión:
 - **Envíos ya usados este año:** cupo de 5 envíos por año. Al llegar a 5 se pierde la franquicia.
 - **Unidades de la misma especie:** más de 3 sale del régimen simplificado.
-- **IVA reducido:** actívalo solo si sabés que el producto lo tiene.
+- **IVA reducido:** activalo solo si sabés que el producto lo tiene.
 
 ## Actualizar las reglas
 
@@ -29,7 +29,9 @@ Editá `src/core/rules.json` (franquicia, alícuotas, percepción de tarjeta) y 
 
 - `npm test` corre los tests (Vitest).
 - `node scripts/e2e.mjs <url> [<url>...]` abre Chromium con la extensión, verifica el bloque y guarda fixtures reales. Amazon puede mostrar un captcha; resolvelo a mano.
-- Si Amazon cambia su HTML, se corrige solo `src/content/parser.js` con un fixture nuevo.
+- El e2e necesita Playwright: además de `npm install`, corré una vez `npx playwright install chromium`.
+- Ojo: el e2e sobrescribe `tests/fixtures/real-N.html` con lo que captura de cada URL.
+- Si Amazon cambia su HTML, no alcanza con `src/content/parser.js` (y un fixture nuevo): también se tocan los `ANCHORS` de `src/content/inject.js` y los selectores de `scripts/e2e.mjs`.
 
 ## Alcance
 

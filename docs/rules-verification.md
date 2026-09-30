@@ -38,13 +38,17 @@ Resultado: `rules.json` no requiere cambios. `npm test` no se corrió porque no 
 - No verificado: si el flete de Amazon integra el FOB o solo el valor CIF (base del IVA). Se mantiene el supuesto del plan y se marca como estimación.
 - No verificado: que el courier cobre los tributos en pesos al entregar. Es consistente con las páginas de ARCA leídas (el Correo cobra tasas de servicio y guarda) y con que son obligaciones fiscales locales, pero no se leyó un artículo que lo diga expresamente.
 
-## Cambio necesario en calc.js
+## Estado de calc.js (implementado)
 
-El plan calcula `tarjetaArs = round(totalUsd * oficial * (1 + percepcionTarjeta))` con `totalUsd = fob + arancel + iva`. Debe cambiar:
+El plan original calculaba `tarjetaArs = round(totalUsd * oficial * (1 + percepcionTarjeta))` con `totalUsd = fob + arancel + iva`, es decir con percepción sobre el total con impuestos. Eso ya se corrigió según la Decisión 2; `src/core/calc.js` hoy implementa:
 
 1. `pagoAmazonUsd = fobUsd` (precio + envío cobrado por Amazon, lo que va a la tarjeta).
-2. `tarjetaArs = round(pagoAmazonUsd * rates.oficial * (1 + rules.percepcionTarjeta))`. La percepción NO se aplica a arancel ni IVA.
-3. `aduanaArs = round((arancelUsd + ivaUsd) * rates.oficial)`: tributos pagados en pesos al courier, sin percepción. Exponerlo como campo del resultado.
-4. Costo final en ARS = `tarjetaArs + aduanaArs`. Si se sigue mostrando "costo a dólar blue", decidirlo en la Tarea 3 según el spec, pero la percepción se calcula siempre sobre `pagoAmazonUsd`.
-5. Ajustar los tests de `tarjetaArs` en `tests/calc.test.js`. Ejemplo: fob 100 USD, oficial 1000, percepción 30 %: `tarjetaArs = 130000` (antes se calculaba sobre 121 USD: 157300) y `aduanaArs = 21000`.
-6. Mostrar en la UI una nota: "Estimación; el arancel real depende del producto".
+2. `aduanaArs = round((arancelUsd + ivaUsd) * oficial)`: tributos pagados en pesos al courier, sin percepción. Expuesto como campo del resultado.
+3. `tarjetaArs = round(pagoAmazonUsd * oficial * (1 + percepcionTarjeta) + aduanaArs)`. La percepción NO se aplica a arancel ni IVA.
+4. `blueArs = round(fobUsd * blue + aduanaArs)`.
+
+O sea: `tarjetaArs` y `blueArs` ya incluyen `aduanaArs`; son el costo final en ARS por cada vía de pago (no hay que sumar la aduana encima).
+
+Ejemplo (fob 110 USD con cupo disponible, oficial 1000, percepción 30 %): dentro de la franquicia el arancel es 0 y queda solo el IVA (21 % de 110 = 23,10 USD), entonces `aduanaArs = 23.100`, `tarjetaArs = 110.000 × 1,3 + 23.100 = 166.100` y, con blue 1500, `blueArs = 110 × 1.500 + 23.100 = 188.100`. Está cubierto por `tests/calc.test.js` ("dentro de franquicia: solo IVA").
+
+La UI muestra la nota "Estimación, puede diferir del cargo final. El arancel real depende del producto."
