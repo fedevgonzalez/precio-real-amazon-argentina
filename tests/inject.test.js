@@ -9,60 +9,58 @@ const ok = (blueArs, tarjetaArs, masBarata = 'tarjeta') => ({
 });
 const RATES = { blue: 1500, oficial: 1000, eurUsd: 1.1 };
 
-describe('buildBlock', () => {
-  it('muestra blue, tarjeta y marca la más barata', () => {
-    const d = doc();
-    const b = buildBlock(d, { results: [ok(199650, 173030)], rates: RATES, fetchedAt: Date.now() });
+describe('buildBlock (bloque mínimo)', () => {
+  it('muestra solo total + impuestos en USD y blue en ARS', () => {
+    const b = buildBlock(doc(), { results: [ok(199650, 173030)] });
     expect(b.id).toBe('aar-block');
-    expect(b.textContent).toMatch(/Blue/);
-    expect(b.textContent).toMatch(/199\.650/);
-    expect(b.textContent).toMatch(/Tarjeta/);
-    expect(b.textContent).toMatch(/173\.030/);
-    expect(b.textContent).toMatch(/Más barata: Tarjeta/);
-    expect(b.textContent).toMatch(/Estimación, puede diferir del cargo final/);
+    expect(b.textContent).toMatch(/Precio real en Argentina/);
+    expect(b.textContent).toMatch(/Total \+ impuestos: USD\s?133,10/);
+    expect(b.textContent).toMatch(/Blue: ARS\s?199\.650/);
   });
 
-  it('montos en pesos con código ARS, no con $ (convive con USD $)', () => {
-    const b = buildBlock(doc(), { results: [ok(199650, 173030)], rates: RATES, fetchedAt: Date.now() });
-    expect(b.textContent).toMatch(/ARS\s?199\.650/); // pesos: "ARS 199.650"
-    expect(b.textContent).toMatch(/ARS\s?173\.030/);
-    expect(b.textContent).not.toMatch(/\$\s?199\.650/); // nunca "$ 199.650" junto al "US$ 110,00" del desglose
-    expect(b.textContent).toMatch(/US\$\s?110,00/); // el desglose en USD sigue con $
+  it('nunca muestra tarjeta, "más barata", desglose ni el aviso fijo', () => {
+    const b = buildBlock(doc(), { results: [ok(199650, 173030)], notes: [{ code: 'ENVIO_NO_INCLUIDO' }] });
+    expect(b.textContent).not.toMatch(/Tarjeta|tarjeta|Más barata|desglose|Estimación|173\.030/);
+    expect(b.querySelector('details')).toBeNull();
   });
 
-  it('rango: muestra ambos extremos', () => {
-    const b = buildBlock(doc(), { results: [ok(100000, 90000), ok(200000, 180000)], rates: RATES, fetchedAt: Date.now() });
-    expect(b.textContent).toMatch(/100\.000/);
-    expect(b.textContent).toMatch(/200\.000/);
+  it('sin notas no hay línea ⚠', () => {
+    const b = buildBlock(doc(), { results: [ok(1, 2)] });
+    expect(b.textContent).not.toMatch(/⚠/);
   });
 
-  it('incluye el desglose con cotizaciones', () => {
-    const b = buildBlock(doc(), { results: [ok(199650, 173030)], rates: RATES, fetchedAt: Date.now() });
-    expect(b.querySelector('details')).not.toBeNull();
-    expect(b.textContent).toMatch(/Cotizaciones/);
+  it.each([
+    [{ code: 'STALE_RATES', minutes: 12 }],
+    [{ code: 'RATES_DISCREPANCY' }],
+    [{ code: 'ENVIO_NO_INCLUIDO' }],
+    [{ code: 'ENVIO_CON_IMPORT_FEES' }],
+  ])('con la nota %j aparece una sola línea "⚠ Ver detalle en la extensión"', (note) => {
+    const b = buildBlock(doc(), { results: [ok(1, 2)], notes: [note, { code: 'ENVIO_NO_INCLUIDO' }] });
+    expect(b.textContent.match(/⚠ Ver detalle en la extensión/g)).toHaveLength(1);
   });
 
-  it('notas: cotización vieja, envío no incluido, import fees', () => {
-    const b = buildBlock(doc(), {
-      results: [ok(1, 2)], rates: RATES, fetchedAt: Date.now(),
-      notes: [{ code: 'STALE_RATES', minutes: 12 }, { code: 'ENVIO_NO_INCLUIDO' }, { code: 'ENVIO_CON_IMPORT_FEES' }],
-    });
-    expect(b.textContent).toMatch(/hace 12 min/);
-    expect(b.textContent).toMatch(/envío no incluido/i);
-    expect(b.textContent).toMatch(/import fees/i);
+  it('un aviso de calc (fuera del régimen) también marca ⚠', () => {
+    const r = ok(1, 2); r.avisos = ['FUERA_REGIMEN_SIMPLIFICADO'];
+    expect(buildBlock(doc(), { results: [r] }).textContent).toMatch(/⚠ Ver detalle en la extensión/);
   });
 
-  it('deduplica avisos repetidos entre resultados del rango', () => {
-    const lo = ok(100000, 90000); lo.avisos = ['FUERA_REGIMEN_SIMPLIFICADO'];
-    const hi = ok(200000, 180000); hi.avisos = ['FUERA_REGIMEN_SIMPLIFICADO'];
-    const b = buildBlock(doc(), { results: [lo, hi], rates: RATES, fetchedAt: Date.now() });
-    expect(b.textContent.match(/Fuera del régimen simplificado/g)).toHaveLength(1);
+  it('rango: muestra ambos extremos de USD y de ARS', () => {
+    const lo = ok(100000, 90000); lo.totalUsd = 50;
+    const hi = ok(200000, 180000); hi.totalUsd = 100;
+    const b = buildBlock(doc(), { results: [lo, hi] });
+    expect(b.textContent).toMatch(/USD\s?50,00\s–\sUSD\s?100,00/);
+    expect(b.textContent).toMatch(/ARS\s?100\.000\s–\sARS\s?200\.000/);
+  });
+
+  it('pesos con código ARS, nunca con $', () => {
+    const b = buildBlock(doc(), { results: [ok(199650, 173030)] });
+    expect(b.textContent).not.toMatch(/\$\s?199\.650/);
   });
 
   it('sin cotización → mensaje explícito y ningún número', () => {
     const b = buildBlock(doc(), { error: 'NO_RATES' });
     expect(b.textContent).toMatch(/Sin cotización disponible/);
-    expect(b.textContent).not.toMatch(/\$\s?\d/);
+    expect(b.textContent).not.toMatch(/\d/);
   });
 
   it('NO_SHIP_TO_AR → "No se envía a Argentina." sin números', () => {
@@ -71,9 +69,8 @@ describe('buildBlock', () => {
     expect(b.textContent).not.toMatch(/\d/);
   });
 
-  it('no interpreta HTML en las notas', () => {
-    const b = buildBlock(doc(), { results: [ok(1, 2)], rates: RATES, fetchedAt: Date.now(), notes: [{ code: '<img src=x onerror=alert(1)>' }] });
-    expect(b.querySelector('img')).toBeNull();
+  it('RELOAD → pide recargar la página', () => {
+    expect(buildBlock(doc(), { error: 'RELOAD' }).textContent).toMatch(/Recargá la página/);
   });
 });
 
@@ -88,18 +85,6 @@ describe('mount', () => {
   it('sin ancla → false', () => {
     const d = new DOMParser().parseFromString('<body></body>', 'text/html');
     expect(mount(d, buildBlock(d, { error: 'NO_RATES' }))).toBe(false);
-  });
-
-  it('al remontar conserva el desglose abierto (y cerrado se conserva cerrado)', () => {
-    const d = doc();
-    const build = (blue) => buildBlock(d, { results: [ok(blue, blue)], rates: RATES, fetchedAt: Date.now() });
-    mount(d, build(199650));
-    d.querySelector('#aar-block details').open = true;
-    mount(d, build(200000)); // números nuevos → remonte real
-    expect(d.querySelector('#aar-block details').open).toBe(true);
-    d.querySelector('#aar-block details').open = false;
-    mount(d, build(210000));
-    expect(d.querySelector('#aar-block details').open).toBe(false);
   });
 });
 

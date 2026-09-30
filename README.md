@@ -14,6 +14,8 @@ Extensión de Chrome/Edge que muestra, en amazon.com y amazon.es, el costo final
 
 Abrí un producto en amazon.com o amazon.es: aparece el bloque "Precio real en Argentina" debajo del precio, con blue, tarjeta, la opción más barata y un desglose desplegable.
 
+El bloque de la página muestra solo **Total + impuestos (USD)** y **Blue (ARS)**; si algo puede cambiar el número (envío desconocido, cotización vieja, fuera del régimen simplificado) agrega `⚠ Ver detalle en la extensión`. El detalle completo del producto abierto (desglose, cotizaciones, avisos) está en el popup de la extensión.
+
 ## Ajustes
 
 Clic en el ícono de la extensión:

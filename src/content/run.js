@@ -11,6 +11,8 @@ const rules = await (await fetch(chrome.runtime.getURL('src/core/rules.json'))).
 
 let lastSignature = null;
 let generation = 0;
+// Datos del último cálculo, para el popup (mensaje GET_DETAILS). null si no hay bloque con números.
+let lastDetails = null;
 
 async function update() {
   // Token de generación: una respuesta lenta de una variante anterior no debe pisar a la actual.
@@ -24,13 +26,16 @@ async function update() {
       lastSignature = null;
       document.getElementById('aar-block')?.remove();
     }
-    console.warn('[aar] sin cálculo:', product.error);
+    lastDetails = null;
+    // Páginas sin producto (portada, listas) son normales: nivel debug, no advertencia.
+    console.debug('[aar] sin cálculo:', product.error);
     return;
   }
 
   const res = await chrome.runtime.sendMessage({ type: 'GET_RATES' });
   if (gen !== generation) return;
   if (!res?.ok) {
+    lastDetails = null;
     mountIfChanged('error:NO_RATES', () => buildBlock(document, { error: 'NO_RATES' }));
     return;
   }
@@ -42,6 +47,7 @@ async function update() {
     .filter((p, i, a) => i === 0 || p !== a[0])
     .map((precio) => calc({ precio, envio, moneda: product.moneda }, res.rates, settings, rules));
   if (results.some((r) => !r.ok)) {
+    lastDetails = null;
     mountIfChanged('error:NO_RATES', () => buildBlock(document, { error: 'NO_RATES' }));
     return;
   }
@@ -61,9 +67,19 @@ async function update() {
   if (product.envioIncluyeImportFees) notes.push({ code: 'ENVIO_CON_IMPORT_FEES' });
   else if (product.envio === null) notes.push({ code: 'ENVIO_NO_INCLUIDO' });
 
+  lastDetails = {
+    moneda: product.moneda,
+    precio: product.precio,
+    envio: product.envio,
+    envioIncluyeImportFees: !!product.envioIncluyeImportFees,
+    results,
+    rates: res.rates,
+    fetchedAt: res.fetchedAt,
+    notes,
+  };
   mountIfChanged(
     renderSignature({ product, rates: res.rates, settings, stale: res.stale, discrepancy: res.discrepancy, fetchedAt: res.fetchedAt, notes }),
-    () => buildBlock(document, { results, rates: res.rates, fetchedAt: res.fetchedAt, notes }),
+    () => buildBlock(document, { results, notes }),
   );
 }
 
@@ -78,8 +94,30 @@ function mountIfChanged(signature, build) {
 let timer;
 const schedule = () => {
   clearTimeout(timer);
-  timer = setTimeout(() => update().catch((e) => { document.getElementById('aar-block')?.remove(); console.warn('[aar]', e); }), 300);
+  timer = setTimeout(() => update().catch(onUpdateError), 300);
 };
+
+// Si se recarga la extensión con la pestaña abierta, este script queda huérfano: dejamos de escuchar la página
+// y avisamos una sola vez que hay que recargarla. Otro error: se quita el bloque para no dejar números viejos.
+function onUpdateError(e) {
+  lastDetails = null;
+  if (String(e?.message).includes('Extension context invalidated')) {
+    observer.disconnect();
+    clearTimeout(timer);
+    try { mount(document, buildBlock(document, { error: 'RELOAD' })); } catch { /* la página cambió: no hay nada más que hacer */ }
+    console.warn('[aar] la extensión se recargó: recargá esta pestaña (F5).');
+    return;
+  }
+  document.getElementById('aar-block')?.remove();
+  console.warn('[aar]', e);
+}
+
+// El popup pide el detalle del producto abierto en la pestaña activa.
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type !== 'GET_DETAILS') return false;
+  sendResponse(lastDetails);
+  return false;
+});
 
 const observer = new MutationObserver(() => schedule());
 

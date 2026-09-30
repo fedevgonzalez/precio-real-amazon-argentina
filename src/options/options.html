@@ -4,13 +4,15 @@
   <meta charset="utf-8">
   <title>Precio real Amazon Argentina</title>
   <style>
-    body { font: 14px system-ui, sans-serif; min-width: 300px; padding: 12px; }
+    body { font: 14px system-ui, sans-serif; min-width: 340px; padding: 12px; }
     label { display: block; margin: 10px 0; }
     input[type=number] { width: 4em; }
     small { color: #565959; }
+    #aar-details { border: 1px solid #067d62; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; line-height: 1.5; }
   </style>
 </head>
 <body>
+  <div id="detalle"></div>
   <h3>Ajustes</h3>
   <label>Envíos ya usados este año (cupo de 5)
     <input id="enviosUsados" type="number" min="0" max="99">
