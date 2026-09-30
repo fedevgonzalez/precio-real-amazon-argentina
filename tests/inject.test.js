@@ -22,6 +22,14 @@ describe('buildBlock', () => {
     expect(b.textContent).toMatch(/Estimación, puede diferir del cargo final/);
   });
 
+  it('montos en pesos con código ARS, no con $ (convive con USD $)', () => {
+    const b = buildBlock(doc(), { results: [ok(199650, 173030)], rates: RATES, fetchedAt: Date.now() });
+    expect(b.textContent).toMatch(/ARS\s?199\.650/); // pesos: "ARS 199.650"
+    expect(b.textContent).toMatch(/ARS\s?173\.030/);
+    expect(b.textContent).not.toMatch(/\$\s?199\.650/); // nunca "$ 199.650" junto al "$100.00" USD
+    expect(b.textContent).toMatch(/\$110\.00/); // el desglose en USD sigue con $
+  });
+
   it('rango: muestra ambos extremos', () => {
     const b = buildBlock(doc(), { results: [ok(100000, 90000), ok(200000, 180000)], rates: RATES, fetchedAt: Date.now() });
     expect(b.textContent).toMatch(/100\.000/);
