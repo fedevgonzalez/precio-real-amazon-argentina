@@ -14,7 +14,7 @@ describe('buildBlock (bloque mínimo)', () => {
     const b = buildBlock(doc(), { results: [ok(199650, 173030)] });
     expect(b.id).toBe('aar-block');
     expect(b.textContent).toMatch(/Precio real en Argentina/);
-    expect(b.textContent).toMatch(/Total \+ impuestos: USD\s?133,10/);
+    expect(b.textContent).toMatch(/Total \+ imp\.: USD\s?133,10/);
     expect(b.textContent).toMatch(/Blue: ARS\s?199\.650/);
   });
 
@@ -79,7 +79,7 @@ describe('marca "~" de estimación', () => {
     expect(buildBlock(doc(), { results: [ok(199650, 1)] }).textContent).not.toMatch(/~/);
     const est = { ...ok(199650, 1), fuente: 'estimado' };
     const t = buildBlock(doc(), { results: [est] }).textContent;
-    expect(t).toMatch(/Total \+ impuestos: ~USD\s?133,10/);
+    expect(t).toMatch(/Total \+ imp\.: ~USD\s?133,10/);
     expect(t).toMatch(/Blue: ~ARS\s?199\.650/);
   });
 });
@@ -89,7 +89,7 @@ describe('línea extra con el total en EUR (amazon.es)', () => {
 
   it('EUR: primero el total en EUR, después USD y blue', () => {
     const t = buildBlock(doc(), { results: [eurRes()] }).textContent;
-    expect(t).toMatch(/Total en EUR: ~EUR\s?100,00Total \+ impuestos: ~USD\s?110,00Blue: ~ARS\s?165\.000/);
+    expect(t).toMatch(/Total en EUR: ~EUR\s?100,00Total \+ imp\.: ~USD\s?110,00Blue: ~ARS\s?165\.000/);
   });
 
   it('USD (amazon.com): no hay línea en EUR', () => {
@@ -104,10 +104,13 @@ describe('línea extra con el total en EUR (amazon.es)', () => {
   it('tarjeta de la lista: línea en EUR arriba de la de USD y blue', () => {
     const d = doc();
     const line = buildCardLine(d, { results: [eurRes()] });
-    expect(line.children).toHaveLength(2);
-    expect(line.children[0].textContent).toMatch(/^Total en EUR: ~EUR\s?100,00$/);
-    expect(line.children[1].textContent).toMatch(/^Total \+ imp\.: ~USD\s?110,00 · Blue: ~ARS\s?165\.000$/);
-    expect(buildCardLine(d, { results: [ok(1, 2)] }).children).toHaveLength(1);
+    expect([...line.children].map((c) => c.textContent.replace(/\s/g, ' '))).toEqual([
+      'Total en EUR: ~EUR 100,00',
+      'Total + imp.: ~USD 110,00',
+      'Blue: ~ARS 165.000',
+    ]);
+    // sin EUR (amazon.com): los mismos renglones, sin el primero
+    expect(buildCardLine(d, { results: [ok(1, 2)] }).children).toHaveLength(2);
   });
 });
 
@@ -157,7 +160,7 @@ describe('renglón por tarjeta (búsqueda)', () => {
 
   it('muestra total + impuestos en USD y blue en ARS en una línea, sin tarjeta ni ⚠', () => {
     const t = buildCardLine(cardDoc(), { results: [{ ...ok(199650, 173030), fuente: 'estimado' }] }).textContent;
-    expect(t).toMatch(/Total \+ imp\.: ~USD\s?133,10 · Blue: ~ARS\s?199\.650/);
+    expect(t).toMatch(/Total \+ imp\.: ~USD\s?133,10Blue: ~ARS\s?199\.650/);
     expect(t).not.toMatch(/⚠|Tarjeta|tarjeta|173\.030/);
   });
 

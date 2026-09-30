@@ -43,7 +43,7 @@ export function buildBlock(doc, { results = [], notes = [], error = null }) {
   const range = (fmt, f) => (lo[f] === hi[f] ? `${mark}${fmt.format(lo[f])}` : `${mark}${fmt.format(lo[f])} – ${fmt.format(hi[f])}`);
   // En amazon.es el precio nace en euros: una línea más con el total en EUR, antes de su conversión a USD y a blue.
   if (hi.moneda === 'EUR') box.appendChild(el(doc, 'div', `Total en EUR: ${range(EUR, 'totalMoneda')}`));
-  box.appendChild(el(doc, 'div', `Total + impuestos: ${range(USD, 'totalUsd')}`));
+  box.appendChild(el(doc, 'div', `Total + imp.: ${range(USD, 'totalUsd')}`));
   box.appendChild(el(doc, 'div', `Blue: ${range(ARS, 'blueArs')}`, 'font-weight:600'));
   if (hasWarnings(results, notes)) {
     box.appendChild(el(doc, 'div', '⚠ Ver detalle en la extensión', 'color:#b12704;font-size:12px'));
@@ -81,7 +81,8 @@ export function mount(doc, block) {
 
 /**
  * Renglón compacto para una tarjeta de la página de búsqueda:
- * "Total + imp.: ~USD 99,80 · Blue: ~ARS 150.834". En la lista Amazon no informa los cargos de importación
+ * Tres renglones (el primero solo en amazon.es): "Total en EUR: ~EUR 126,69", "Total + imp.: ~USD 143,86",
+ * "Blue: ~ARS 224.415". En la lista Amazon no informa los cargos de importación
  * (solo en la página del producto): es una estimación ("~") hasta que se lee el total real. Sin ⚠ por tarjeta.
  */
 export function buildCardLine(doc, { results }) {
@@ -92,7 +93,8 @@ export function buildCardLine(doc, { results }) {
   const line = el(doc, 'div', undefined, 'margin:2px 0;font-size:13px;line-height:1.3;color:#067d62;font-weight:600');
   line.className = 'aar-card';
   if (hi.moneda === 'EUR') line.appendChild(el(doc, 'div', `Total en EUR: ${range(EUR, 'totalMoneda')}`));
-  line.appendChild(el(doc, 'div', `Total + imp.: ${range(USD, 'totalUsd')} · Blue: ${range(ARS, 'blueArs')}`));
+  line.appendChild(el(doc, 'div', `Total + imp.: ${range(USD, 'totalUsd')}`));
+  line.appendChild(el(doc, 'div', `Blue: ${range(ARS, 'blueArs')}`));
   return line;
 }
 
