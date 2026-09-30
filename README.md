@@ -6,7 +6,7 @@ Extensión de Chrome/Edge que muestra, en amazon.com y amazon.es, el costo final
 
 ## Instalación
 
-1. `npm install` (necesario para correr los tests y el e2e).
+1. `npm install` (solo para correr los tests).
 2. Abrí `chrome://extensions` (o `edge://extensions`) y activá **Modo desarrollador**.
 3. **Cargar descomprimida** → elegí esta carpeta.
 
@@ -32,10 +32,7 @@ Editá `src/core/rules.json` (franquicia, alícuotas, percepción de tarjeta) y 
 ## Desarrollo
 
 - `npm test` corre los tests (Vitest).
-- `node scripts/e2e.mjs <url> [<url>...]` abre Chromium con la extensión, verifica el bloque y guarda fixtures reales. Amazon puede mostrar un captcha; resolvelo a mano.
-- El e2e necesita Playwright: además de `npm install`, corré una vez `npx playwright install chromium`.
-- Ojo: el e2e sobrescribe `tests/fixtures/real-N.html` con lo que captura de cada URL.
-- Si Amazon cambia su HTML, no alcanza con `src/content/parser.js` (y un fixture nuevo): también se tocan los `ANCHORS` de `src/content/inject.js` y los selectores de `scripts/e2e.mjs`.
+- Si Amazon cambia su HTML, se tocan los selectores de `src/content/parser.js` y los `ANCHORS` de `src/content/inject.js`; los tests usan fragmentos de HTML en `tests/parser.test.js`.
 
 ## Alcance
 
