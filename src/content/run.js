@@ -1,4 +1,4 @@
-import { parseProduct, parseSearchCards } from './parser.js';
+import { parseProduct, parseSearchCards, amazonTotalFromHtml } from './parser.js';
 import { buildBlock, mount, renderSignature, buildCardLine, mountCardLine } from './inject.js';
 import { calc } from '../core/calc.js';
 import { loadSettings } from '../core/settings.js';
@@ -17,6 +17,72 @@ let lastDetails = null;
 const MAX_CARDS = 100;
 const isSearchPage = () => /^\/s(\/|$)/.test(location.pathname);
 
+// Nuestras propias inserciones no deben re-disparar update(): el observer se pausa mientras escribimos.
+function paused(fn) {
+  observer.disconnect();
+  try {
+    fn();
+  } finally {
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+}
+
+// Cada tarjeta de la lista muestra una estimación ("~"); en amazon.com se reemplaza por el total real de Amazon,
+// leído de la página del producto (solo ahí Amazon informa los cargos de importación), con caché por ASIN.
+const FETCH_POOL = 3;
+const MAX_FETCH = 40;
+const TOTAL_TTL_MS = 6 * 3600 * 1000;
+const cardState = new WeakMap();
+const fetchQueue = [];
+let fetching = 0;
+let queued = 0;
+
+function renderCard(card) {
+  const st = cardState.get(card);
+  if (!st) return;
+  const { product, res, settings, base } = st;
+  const real = card.dataset.aarTotal ? Number(card.dataset.aarTotal) : undefined;
+  const sig = base + JSON.stringify([product.precio, product.envio, product.moneda, real]);
+  if (card.dataset.aarSig === sig && card.querySelector('.aar-card')) return;
+  const amazonTotal = product.precio.min === product.precio.max ? real : undefined;
+  const results = [product.precio.min, product.precio.max]
+    .filter((p, i, a) => i === 0 || p !== a[0])
+    .map((precio) => calc({ precio, envio: product.envio ?? 0, moneda: product.moneda, amazonTotal }, res.rates, settings, rules));
+  if (results.some((r) => !r.ok)) return;
+  card.dataset.aarSig = sig;
+  mountCardLine(card, buildCardLine(document, { results }));
+}
+
+async function realTotal(asin, precio) {
+  const key = `tot:${asin}`;
+  const hit = (await chrome.storage.local.get(key))[key];
+  if (hit && Date.now() - hit.at < TOTAL_TTL_MS && hit.precio === precio) return hit.total;
+  try {
+    const r = await fetch(`${location.origin}/dp/${asin}?th=1`, { credentials: 'include' });
+    if (!r.ok) return null; // bloqueado o caído: queda la estimación y se reintenta en otra visita
+    const total = amazonTotalFromHtml(await r.text(), location.hostname, precio);
+    await chrome.storage.local.set({ [key]: { total, precio, at: Date.now() } });
+    return total;
+  } catch {
+    return null;
+  }
+}
+
+function pumpFetches() {
+  while (fetching < FETCH_POOL && fetchQueue.length) {
+    const { card, asin, precio } = fetchQueue.shift();
+    fetching++;
+    realTotal(asin, precio)
+      .then((total) => {
+        if (total == null || !card.isConnected) return;
+        card.dataset.aarTotal = String(total);
+        paused(() => renderCard(card));
+      })
+      .catch(() => {})
+      .finally(() => { fetching--; pumpFetches(); });
+  }
+}
+
 // Página de resultados: un renglón por tarjeta con el mismo cálculo que la página de producto.
 async function updateSearch(gen) {
   lastDetails = null;
@@ -30,27 +96,26 @@ async function updateSearch(gen) {
   const settings = await loadSettings(storage);
   if (gen !== generation) return;
   const base = JSON.stringify([res.rates, settings]);
+  const conTotalReal = location.hostname.endsWith('amazon.com');
 
-  observer.disconnect(); // nuestras propias inserciones no deben re-disparar update()
-  try {
+  paused(() => {
     for (const { card, product } of cards) {
       if (!product.ok) {
         card.querySelector('.aar-card')?.remove();
         delete card.dataset.aarSig;
         continue;
       }
-      const sig = base + JSON.stringify([product.precio, product.envio, product.moneda]);
-      if (card.dataset.aarSig === sig && card.querySelector('.aar-card')) continue;
-      const results = [product.precio.min, product.precio.max]
-        .filter((p, i, a) => i === 0 || p !== a[0])
-        .map((precio) => calc({ precio, envio: product.envio ?? 0, moneda: product.moneda }, res.rates, settings, rules));
-      if (results.some((r) => !r.ok)) continue;
-      card.dataset.aarSig = sig;
-      mountCardLine(card, buildCardLine(document, { results }));
+      cardState.set(card, { product, res, settings, base });
+      renderCard(card);
+      const asin = card.getAttribute('data-asin');
+      if (conTotalReal && asin && product.precio.min === product.precio.max && !card.dataset.aarTried && queued < MAX_FETCH) {
+        card.dataset.aarTried = '1';
+        queued++;
+        fetchQueue.push({ card, asin, precio: product.precio.min });
+      }
     }
-  } finally {
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-  }
+  });
+  pumpFetches();
 }
 
 async function update() {

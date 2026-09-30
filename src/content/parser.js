@@ -127,3 +127,9 @@ export function parseSearchCards(doc, hostname) {
   if (!store) return [];
   return [...doc.querySelectorAll(CARD)].map((card) => ({ card, product: parseCard(card, store) }));
 }
+
+/** Total real de Amazon de un producto, leído del HTML de su página (para la lista). null si no hay o el precio no coincide. */
+export function amazonTotalFromHtml(html, hostname, precio) {
+  const p = parseProduct(new DOMParser().parseFromString(html, 'text/html'), hostname);
+  return p.ok && p.amazon && Math.abs(p.precio.min - precio) < 0.005 ? p.amazon.total : null;
+}

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parseAmount, parseProduct, parseSearchCards } from '../src/content/parser.js';
+import { parseAmount, parseProduct, parseSearchCards, amazonTotalFromHtml } from '../src/content/parser.js';
 
 const doc = (html) => new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
 const price = (t, extra = '') => `<span class="a-price"><span class="a-offscreen">${t}</span></span>${extra}`;
@@ -215,5 +215,18 @@ describe('total de Amazon desde la línea resumen (sin el popover cargado)', () 
     const sin = parseProduct(doc(base + resumen(linea)), 'www.amazon.com');
     const con = parseProduct(doc(base + `<div id="amazonGlobal_feature_div"><span>${linea}</span> Detalles de envío y tarifa Precio US$23.98 Envío de AmazonGlobal US$26.52 Cargos estimados de importación US$10.61 Total US$61.11</div>`), 'www.amazon.com');
     expect(con.amazon.total).toBeCloseTo(sin.amazon.total);
+  });
+});
+
+describe('amazonTotalFromHtml (lista → página del producto)', () => {
+  const page = (precio, cargos) => `<body>${core(price(precio))}<div id="amazonGlobal_feature_div"><span>${cargos}</span></div></body>`;
+
+  it('devuelve el total real si el precio de la página coincide con el de la tarjeta (US$139.99 + 35.11 = 175.10)', () => {
+    expect(amazonTotalFromHtml(page('US$139.99', 'US$35.11 de cargos de importación y envío gratis a Argentina'), 'www.amazon.com', 139.99)).toBeCloseTo(175.1);
+  });
+
+  it('null si el precio difiere (otra variante o cupón) o si no hay panel', () => {
+    expect(amazonTotalFromHtml(page('US$149.99', 'US$35.11 de cargos de importación y envío gratis a Argentina'), 'www.amazon.com', 139.99)).toBeNull();
+    expect(amazonTotalFromHtml(`<body>${core(price('US$139.99'))}</body>`, 'www.amazon.com', 139.99)).toBeNull();
   });
 });

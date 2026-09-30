@@ -129,14 +129,19 @@ describe('renglón por tarjeta (búsqueda)', () => {
     '<body><div data-component-type="s-search-result"><div data-cy="price-recipe"></div><div data-cy="delivery-recipe"></div></div></body>', 'text/html');
 
   it('muestra total + impuestos en USD y blue en ARS en una línea, sin tarjeta ni ⚠', () => {
-    const t = buildCardLine(cardDoc(), { results: [ok(199650, 173030)] }).textContent;
+    const t = buildCardLine(cardDoc(), { results: [{ ...ok(199650, 173030), fuente: 'estimado' }] }).textContent;
     expect(t).toMatch(/Total \+ imp\.: ~USD\s?133,10 · Blue: ~ARS\s?199\.650/);
     expect(t).not.toMatch(/⚠|Tarjeta|tarjeta|173\.030/);
   });
 
+  it('con el total real de Amazon (fuente amazon) el renglón va sin "~"', () => {
+    const t = buildCardLine(cardDoc(), { results: [ok(199650, 173030)] }).textContent; // ok() trae fuente amazon
+    expect(t).not.toMatch(/~/);
+  });
+
   it('rango de precios', () => {
-    const lo = ok(100000, 1); lo.totalUsd = 50;
-    const hi = ok(200000, 1); hi.totalUsd = 100;
+    const lo = ok(100000, 1); lo.totalUsd = 50; lo.fuente = 'estimado';
+    const hi = ok(200000, 1); hi.totalUsd = 100; hi.fuente = 'estimado';
     const t = buildCardLine(cardDoc(), { results: [lo, hi] }).textContent;
     expect(t).toMatch(/~USD\s?50,00\s–\sUSD\s?100,00/);
     expect(t).toMatch(/~ARS\s?100\.000\s–\sARS\s?200\.000/);

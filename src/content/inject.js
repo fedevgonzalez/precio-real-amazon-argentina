@@ -79,12 +79,12 @@ export function mount(doc, block) {
 /**
  * Renglón compacto para una tarjeta de la página de búsqueda:
  * "Total + imp.: ~USD 99,80 · Blue: ~ARS 150.834". En la lista Amazon no informa los cargos de importación
- * (solo en la página del producto): siempre es una estimación, por eso el "~". Sin ⚠ por tarjeta.
+ * (solo en la página del producto): es una estimación ("~") hasta que se lee el total real. Sin ⚠ por tarjeta.
  */
 export function buildCardLine(doc, { results }) {
   const lo = results[0];
   const hi = results[results.length - 1];
-  const mark = '~';
+  const mark = hi.fuente === 'amazon' ? '' : '~';
   const range = (fmt, f) => (lo[f] === hi[f] ? `${mark}${fmt.format(lo[f])}` : `${mark}${fmt.format(lo[f])} – ${fmt.format(hi[f])}`);
   const line = el(doc, 'div', `Total + imp.: ${range(USD, 'totalUsd')} · Blue: ${range(ARS, 'blueArs')}`,
     'margin:2px 0;font-size:13px;line-height:1.3;color:#067d62;font-weight:600');
