@@ -48,10 +48,25 @@ export async function getRates({ fetchFn, storage, rules, now = Date.now }) {
   const cachedAt = (n) => cached?.ratesAt?.[n] ?? (cached?.rates?.[n] ? cached.fetchedAt : undefined);
 
   // Vigente solo si está completa: sin eurUsd hay que reintentar (amazon.es quedaría sin conversión todo el TTL).
-  if (cached && names.every((n) => cached.rates?.[n]) && now() - Math.min(cachedAt('blue'), cachedAt('oficial')) < ttl) {
+  const completa = () => names.every((n) => cached?.rates?.[n]);
+  if (completa() && now() - Math.min(cachedAt('blue'), cachedAt('oficial')) < ttl) {
     const ratesAt = Object.fromEntries(names.map((n) => [n, cachedAt(n)]));
     // Una tasa puntual puede ser más vieja que el TTL (su fuente viene cayendo): se reporta como reusada.
     const staleRates = names.filter((n) => now() - cachedAt(n) >= ttl);
+    return {
+      ok: true, rates: cached.rates, ratesAt, staleRates,
+      fetchedAt: Math.min(ratesAt.blue, ratesAt.oficial),
+      stale: staleRates.some((n) => n !== 'eurUsd'),
+      discrepancy: !!cached.discrepancy,
+    };
+  }
+
+  // Caché incompleta que ya se intentó completar hace poco: responder con lo cacheado
+  // sin volver a martillar las 6 consultas por cada GET_RATES (fuentes caídas).
+  if (cached && !completa() && now() - (cached.lastAttemptAt ?? 0) < rules.cache.reintentoParcialMs) {
+    if (!cached.rates?.blue || !cached.rates?.oficial) return { ok: false, error: 'NO_RATES' };
+    const ratesAt = Object.fromEntries(names.filter((n) => cached.rates[n]).map((n) => [n, cachedAt(n)]));
+    const staleRates = names.filter((n) => cached.rates[n] && now() - cachedAt(n) >= ttl);
     return {
       ok: true, rates: cached.rates, ratesAt, staleRates,
       fetchedAt: Math.min(ratesAt.blue, ratesAt.oficial),
@@ -83,6 +98,6 @@ export async function getRates({ fetchFn, storage, rules, now = Date.now }) {
   const stale = staleRates.some((n) => n !== 'eurUsd');
   if (staleRates.length) discrepancy ||= !!cached.discrepancy;
   const fetchedAt = Math.min(ratesAt.blue, ratesAt.oficial);
-  await storage.set('rates', { rates, ratesAt, fetchedAt, discrepancy });
+  await storage.set('rates', { rates, ratesAt, fetchedAt, discrepancy, lastAttemptAt: now() });
   return { ok: true, rates, ratesAt, fetchedAt, stale, staleRates, discrepancy };
 }

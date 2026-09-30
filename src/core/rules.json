@@ -8,5 +8,5 @@
   "topeFobUsd": 3000,
   "maxUnidades": 3,
   "percepcionTarjeta": 0.3,
-  "cache": { "minutos": 10, "timeoutMs": 4000, "discrepanciaMax": 0.05 }
+  "cache": { "minutos": 10, "timeoutMs": 4000, "discrepanciaMax": 0.05, "reintentoParcialMs": 60000 }
 }

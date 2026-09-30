@@ -10,6 +10,7 @@ describe('rules.json', () => {
     expect(rules.cache.minutos).toBeGreaterThan(0);
     expect(rules.cache.timeoutMs).toBeGreaterThan(0);
     expect(rules.cache.discrepanciaMax).toBeGreaterThan(0);
+    expect(rules.cache.reintentoParcialMs).toBeGreaterThan(0);
   });
 
   it('las alícuotas son fracciones, no porcentajes', () => {

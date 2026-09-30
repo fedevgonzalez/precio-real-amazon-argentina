@@ -147,4 +147,19 @@ describe('getRates', () => {
     expect(r.ratesAt.eurUsd).toBe(t0); // y con su timestamp original
     expect(r.stale).toBe(false);
   });
+
+  it('caché incompleta con intento reciente: no consulta la red (backoff de reintentoParcialMs)', async () => {
+    const map = { ...HAPPY };
+    delete map[U.eur1]; delete map[U.eur2];
+    const fetchFn = makeFetch(map);
+    const storage = makeStorage();
+    let t = 1_000_000;
+    // 5 llamadas seguidas con eurUsd caído: una sola ronda de fetches (6 consultas).
+    for (let i = 0; i < 5; i++) await getRates({ fetchFn, storage, rules: RULES, now: () => t });
+    expect(fetchFn).toHaveBeenCalledTimes(6);
+    // Pasado reintentoParcialMs (1000 en el fixture) se reintenta la red.
+    t = 1_000_000 + 1_001;
+    await getRates({ fetchFn, storage, rules: RULES, now: () => t });
+    expect(fetchFn).toHaveBeenCalledTimes(12);
+  });
 });
