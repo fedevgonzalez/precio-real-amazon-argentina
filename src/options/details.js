@@ -53,8 +53,7 @@ export function buildDetails(doc, details) {
   box.appendChild(row(doc, 'Arancel', range(USD, 'arancelUsd')));
   box.appendChild(row(doc, 'IVA', range(USD, 'ivaUsd')));
   box.appendChild(row(doc, 'Total + impuestos', range(USD, 'totalUsd')));
-  box.appendChild(row(doc, 'Pago a Amazon', range(USD, 'pagoAmazonUsd')));
-  box.appendChild(row(doc, 'Tributos de aduana (en pesos, al courier)', range(ARS, 'aduanaArs')));
+  box.appendChild(row(doc, 'Total calculado con', hi.fuente === 'amazon' ? 'el total que informa Amazon' : 'estimación propia (IVA 21 % + arancel máximo)'));
   box.appendChild(row(doc, 'Blue', range(ARS, 'blueArs')));
 
   if (details.amazon?.total != null) {

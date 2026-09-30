@@ -15,10 +15,9 @@ describe('calc', () => {
     expect(r.arancelUsd).toBe(0);
     expect(r.ivaUsd).toBeCloseTo(23.1);
     expect(r.totalUsd).toBeCloseTo(133.1);
-    expect(r.pagoAmazonUsd).toBeCloseTo(110);
-    expect(r.aduanaArs).toBe(23100);
-    expect(r.blueArs).toBe(188100);
-    expect(r.tarjetaArs).toBe(166100);
+    expect(r.fuente).toBe('estimado');
+    expect(r.blueArs).toBe(199650);
+    expect(r.tarjetaArs).toBe(173030);
     expect(r.masBarata).toBe('tarjeta');
     expect(r.avisos).toEqual([]);
   });
@@ -28,8 +27,8 @@ describe('calc', () => {
     expect(r.arancelUsd).toBe(0);
     expect(r.ivaUsd).toBeCloseTo(84);
     expect(r.totalUsd).toBeCloseTo(484);
-    expect(r.blueArs).toBe(684000);
-    expect(r.tarjetaArs).toBe(604000);
+    expect(r.blueArs).toBe(726000);
+    expect(r.tarjetaArs).toBe(629200);
   });
 
   it('excedente sobre USD 400 paga arancel e IVA sobre (fob + arancel)', () => {
@@ -38,9 +37,8 @@ describe('calc', () => {
     expect(r.arancelUsd).toBeCloseTo(35);
     expect(r.ivaUsd).toBeCloseTo(112.35);
     expect(r.totalUsd).toBeCloseTo(647.35);
-    expect(r.aduanaArs).toBe(147350);
-    expect(r.blueArs).toBe(897350);
-    expect(r.tarjetaArs).toBe(797350);
+    expect(r.blueArs).toBe(971025);
+    expect(r.tarjetaArs).toBe(841555);
   });
 
   it('cupo agotado: régimen general sobre el total', () => {
@@ -49,9 +47,8 @@ describe('calc', () => {
     expect(r.arancelUsd).toBeCloseTo(35);
     expect(r.ivaUsd).toBeCloseTo(28.35);
     expect(r.totalUsd).toBeCloseTo(163.35);
-    expect(r.aduanaArs).toBe(63350);
-    expect(r.blueArs).toBe(213350);
-    expect(r.tarjetaArs).toBe(193350);
+    expect(r.blueArs).toBe(245025);
+    expect(r.tarjetaArs).toBe(212355);
   });
 
   it('con 4 envíos usados todavía hay cupo', () => {
@@ -63,22 +60,21 @@ describe('calc', () => {
     const r = run({ precio: 100, envio: 0, moneda: 'EUR' });
     expect(r.fobUsd).toBeCloseTo(110);
     expect(r.totalUsd).toBeCloseTo(133.1);
-    expect(r.blueArs).toBe(188100);
-    expect(r.tarjetaArs).toBe(166100);
+    expect(r.blueArs).toBe(199650);
+    expect(r.tarjetaArs).toBe(173030);
   });
 
   it('IVA reducido', () => {
     const r = run({ precio: 100, moneda: 'USD' }, { ivaReducido: true });
     expect(r.ivaUsd).toBeCloseTo(10.5);
     expect(r.totalUsd).toBeCloseTo(110.5);
-    expect(r.aduanaArs).toBe(10500);
-    expect(r.blueArs).toBe(160500);
-    expect(r.tarjetaArs).toBe(140500);
+    expect(r.blueArs).toBe(165750);
+    expect(r.tarjetaArs).toBe(143650);
   });
 
   it('marca blue como más barata cuando corresponde', () => {
     const r = run({ precio: 100, envio: 10, moneda: 'USD' }, {}, { ...RATES, blue: 1200 });
-    expect(r.blueArs).toBe(155100);
+    expect(r.blueArs).toBe(159720);
     expect(r.masBarata).toBe('blue');
   });
 
@@ -105,5 +101,20 @@ describe('calc', () => {
   it('avisa si sale del régimen simplificado', () => {
     expect(run({ precio: 3500, moneda: 'USD' }).avisos).toContain('FUERA_REGIMEN_SIMPLIFICADO');
     expect(run({ precio: 100, moneda: 'USD' }, { unidades: 4 }).avisos).toContain('FUERA_REGIMEN_SIMPLIFICADO');
+  });
+
+  it('si la página informa el total de Amazon (USD), se usa ese y no la estimación propia', () => {
+    const r = run({ precio: 119.99, moneda: 'USD', amazonTotal: 150.74 });
+    expect(r.fuente).toBe('amazon');
+    expect(r.totalUsd).toBeCloseTo(150.74);
+    expect(r.blueArs).toBe(226110); // 150,74 × 1500
+    expect(r.tarjetaArs).toBe(195962); // 150,74 × 1000 × 1,3
+  });
+
+  it('total de Amazon en EUR se convierte con eurUsd; valores inválidos lo ignoran', () => {
+    expect(run({ precio: 33.05, envio: 30.5, moneda: 'EUR', amazonTotal: 76.9 }).totalUsd).toBeCloseTo(84.59);
+    for (const amazonTotal of [null, undefined, 0, -5, NaN]) {
+      expect(run({ precio: 100, moneda: 'USD', amazonTotal }).fuente).toBe('estimado');
+    }
   });
 });

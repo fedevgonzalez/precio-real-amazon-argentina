@@ -5,7 +5,7 @@ import { buildDetails, EMPTY_TEXT } from '../src/options/details.js';
 const doc = () => new DOMParser().parseFromString('<body></body>', 'text/html');
 const result = {
   ok: true, fobUsd: 110, franquiciaAplicadaUsd: 110, arancelUsd: 0, ivaUsd: 23.1, totalUsd: 133.1,
-  pagoAmazonUsd: 110, aduanaArs: 23100, blueArs: 188100, tarjetaArs: 166100, masBarata: 'tarjeta', avisos: [],
+  fuente: 'estimado', blueArs: 199650, tarjetaArs: 173030, masBarata: 'tarjeta', avisos: [],
 };
 const details = (over = {}) => ({
   moneda: 'USD', precio: { min: 100, max: 100 }, envio: 10, envioIncluyeImportFees: false,
@@ -16,16 +16,17 @@ describe('buildDetails', () => {
   it('muestra el desglose completo y el blue', () => {
     const t = buildDetails(doc(), details()).textContent;
     for (const k of ['Producto actual', 'Base (precio + envío)', 'Franquicia aplicada', 'Arancel', 'IVA', 'Total + impuestos',
-      'Pago a Amazon', 'Tributos de aduana', 'Blue', 'Cotizaciones', 'Estimación, puede diferir del cargo final']) {
+      'Total calculado con', 'Blue', 'Cotizaciones', 'Estimación, puede diferir del cargo final']) {
       expect(t, k).toContain(k);
     }
     expect(t).toMatch(/Total \+ impuestos: USD\s?133,10/);
-    expect(t).toMatch(/Blue: ARS\s?188\.100/);
+    expect(t).toMatch(/Blue: ARS\s?199\.650/);
+    expect(t).toMatch(/estimación propia/);
   });
 
   it('nunca muestra tarjeta ni dólar tarjeta', () => {
     const t = buildDetails(doc(), details()).textContent;
-    expect(t).not.toMatch(/tarjeta|Tarjeta|166\.100/);
+    expect(t).not.toMatch(/tarjeta|Tarjeta|173\.030/);
   });
 
   it('envío desconocido → "no incluido"; en EUR muestra el precio en EUR', () => {

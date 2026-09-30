@@ -177,3 +177,13 @@ describe('envío exacto desde el desglose de AmazonGlobal', () => {
     expect(r.amazon).toBeUndefined();
   });
 });
+
+describe('panel de AmazonGlobal con scripts inline', () => {
+  it('ignora el código del <script> y lee el total y el envío gratis de un producto caro', () => {
+    const html = core(price('US$3,499.99')) + '<div id="amazonGlobal_feature_div"><script>var x = "Total 999"; function f() { return 1; }</script>'
+      + '<span>US$1,410.20 de cargos de importación y envío gratis a Argentina</span> <div>Detalles de envío y tarifa Precio US$3,499.99 Envío de AmazonGlobal US$0.00 Cargos estimados de importación US$1,410.20 Total US$4,910.19</div></div>';
+    const r = parseProduct(doc(html), 'www.amazon.com');
+    expect(r.envio).toBe(0);
+    expect(r.amazon).toEqual({ importacion: 1410.2, total: 4910.19 });
+  });
+});

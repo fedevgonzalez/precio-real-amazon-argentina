@@ -1,6 +1,6 @@
 /** Cálculo puro del costo final en ARS. Sin DOM ni red. Ver typedefs en el plan (Tarea 3). */
 export function calc(item, rates, settings, rules) {
-  const { precio, envio = 0, moneda } = item ?? {};
+  const { precio, envio = 0, moneda, amazonTotal } = item ?? {};
   const valid =
     Number.isFinite(precio) && precio > 0 &&
     Number.isFinite(envio) && envio >= 0 &&
@@ -18,15 +18,15 @@ export function calc(item, rates, settings, rules) {
   const franquiciaAplicadaUsd = conCupo ? Math.min(fobUsd, rules.franquiciaUsd) : 0;
   const arancelUsd = (fobUsd - franquiciaAplicadaUsd) * rules.arancelGeneral;
   const ivaUsd = (fobUsd + arancelUsd) * (ivaReducido ? rules.ivaReducido : rules.ivaGeneral);
-  const totalUsd = fobUsd + arancelUsd + ivaUsd;
+  // Amazon cobra producto + envío + cargos de importación juntos en el checkout: si la página informa su
+  // total (amazonTotal, en la moneda del item), es lo que realmente se paga; si no, la estimación propia.
+  const conv = moneda === 'EUR' ? rates.eurUsd : 1;
+  const usaAmazon = Number.isFinite(amazonTotal) && amazonTotal > 0;
+  const totalUsd = usaAmazon ? amazonTotal * conv : fobUsd + arancelUsd + ivaUsd;
 
-  // Tributos aduaneros: se pagan en pesos al courier (dólar oficial, sin percepción de tarjeta).
-  const aduanaUsd = arancelUsd + ivaUsd;
-  const aduanaArs = Math.round(aduanaUsd * rates.oficial);
-  // Lo que cobra Amazon (precio + envío): blue = USD comprados al blue; tarjeta = oficial + percepción.
-  // Un solo redondeo por total: se suma sin redondear los pasos intermedios.
-  const blueArs = Math.round(fobUsd * rates.blue + aduanaUsd * rates.oficial);
-  const tarjetaArs = Math.round(fobUsd * rates.oficial * (1 + rules.percepcionTarjeta) + aduanaUsd * rates.oficial);
+  // Blue = esos USD comprados al blue; tarjeta = dólar oficial + percepción. Un solo redondeo por total.
+  const blueArs = Math.round(totalUsd * rates.blue);
+  const tarjetaArs = Math.round(totalUsd * rates.oficial * (1 + rules.percepcionTarjeta));
 
   const avisos = [];
   if (fobUsd > rules.topeFobUsd || unidades > rules.maxUnidades) avisos.push('FUERA_REGIMEN_SIMPLIFICADO');
@@ -34,7 +34,7 @@ export function calc(item, rates, settings, rules) {
   return {
     ok: true,
     fobUsd, franquiciaAplicadaUsd, arancelUsd, ivaUsd, totalUsd,
-    pagoAmazonUsd: fobUsd, aduanaArs,
+    fuente: usaAmazon ? 'amazon' : 'estimado',
     blueArs, tarjetaArs,
     masBarata: blueArs <= tarjetaArs ? 'blue' : 'tarjeta',
     avisos,

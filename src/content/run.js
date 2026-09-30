@@ -83,9 +83,11 @@ async function update() {
   const settings = await loadSettings(storage);
   if (gen !== generation) return;
   const envio = product.envio ?? 0;
+  // El total que informa Amazon vale para el precio elegido: con un rango de variantes no se usa.
+  const amazonTotal = product.precio.min === product.precio.max ? product.amazon?.total : undefined;
   const results = [product.precio.min, product.precio.max]
     .filter((p, i, a) => i === 0 || p !== a[0])
-    .map((precio) => calc({ precio, envio, moneda: product.moneda }, res.rates, settings, rules));
+    .map((precio) => calc({ precio, envio, moneda: product.moneda, amazonTotal }, res.rates, settings, rules));
   if (results.some((r) => !r.ok)) {
     lastDetails = null;
     mountIfChanged('error:NO_RATES', () => buildBlock(document, { error: 'NO_RATES' }));

@@ -41,7 +41,10 @@ function shippingFromText(text, store) {
 // "Precio … Envío de AmazonGlobal US$26.52 Cargos estimados de importación US$10.61 Total US$61.11".
 // Es el dato exacto del envío (la línea resumen "US$37.13 de cargos de envío e importación" los suma).
 function parseAmazonGlobal(doc, store) {
-  const text = (doc.querySelector('#amazonGlobal_feature_div')?.textContent ?? '').replace(/[\s ]+/g, ' ');
+  // El panel trae <script>s inline: se quitan para no leer "Total" ni números del código.
+  const panel = doc.querySelector('#amazonGlobal_feature_div')?.cloneNode(true);
+  panel?.querySelectorAll('script,style').forEach((n) => n.remove());
+  const text = (panel?.textContent ?? '').replace(/[\s ]+/g, ' ');
   const grab = (re) => {
     const m = text.match(re);
     const n = m ? parseAmount(m[1], store.locale) : NaN;
