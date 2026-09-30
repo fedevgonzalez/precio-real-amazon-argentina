@@ -14,6 +14,7 @@ function noteText(n) {
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', currencyDisplay: 'code', maximumFractionDigits: 0 });
 const USD = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', currencyDisplay: 'code', maximumFractionDigits: 2 });
 const NUM = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 });
+const EUR2 = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export const EMPTY_TEXT = 'Abrí un producto de amazon.com o amazon.es para ver el detalle.';
 
@@ -47,7 +48,7 @@ export function buildDetails(doc, details) {
   const lo = results[0];
   const hi = results[results.length - 1];
   const delAmazon = hi.fuente === 'amazon';
-  const money = moneda === 'EUR' ? (n) => `EUR ${NUM.format(n)}` : (n) => USD.format(n);
+  const money = moneda === 'EUR' ? (n) => `EUR ${EUR2.format(n)}` : (n) => USD.format(n);
   const rango = (fmt, f) => (lo[f] === hi[f] ? fmt.format(lo[f]) : `${fmt.format(lo[f])} – ${fmt.format(hi[f])}`);
 
   // Total grande: "USD" chico + cifra en serif; un rango de variantes va en una línea más chica.
@@ -94,7 +95,7 @@ export function buildDetails(doc, details) {
   }
 
   if (rates) {
-    const hora = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const hora = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
     const eur = rates.eurUsd ? ` · EUR/USD ${NUM.format(rates.eurUsd)}` : '';
     box.append(el(doc, 'p', 'tasas', `Blue ${NUM.format(rates.blue)} · Oficial ${NUM.format(rates.oficial)}${eur} · ${hora}`));
   }
