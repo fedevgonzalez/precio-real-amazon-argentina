@@ -16,6 +16,8 @@ Abrí un producto en amazon.com o amazon.es: aparece el bloque "Precio real en A
 
 El bloque de la página muestra solo **Total + impuestos (USD)** y **Blue (ARS)**; si algo puede cambiar el número (envío desconocido, cotización vieja, fuera del régimen simplificado) agrega `⚠ Ver detalle en la extensión`. El detalle completo del producto abierto (desglose, cotizaciones, avisos) está en el popup de la extensión.
 
+En las **páginas de resultados de búsqueda** (`/s?k=...`) cada producto muestra un renglón `Total + imp.: USD x · Blue: ARS y`; el `~` delante de los montos indica que el envío no está incluido (Amazon no lo informó).
+
 ## Ajustes
 
 Clic en el ícono de la extensión:
