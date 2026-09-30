@@ -37,25 +37,30 @@ function shippingFromText(text, store) {
   return { envio: Number.isFinite(envio) ? envio : null, envioIncluyeImportFees: false };
 }
 
-// Amazon trae dentro de la página el desglose del popover "Detalles de envío y tarifa":
-// "Precio … Envío de AmazonGlobal US$26.52 Cargos estimados de importación US$10.61 Total US$61.11".
-// Es el dato exacto del envío (la línea resumen "US$37.13 de cargos de envío e importación" los suma).
+// Panel de AmazonGlobal. Dos datos, del más estable al menos:
+// 1) Línea resumen siempre visible: "US$37.13 de cargos de envío e importación a Argentina"
+//    (o "…de cargos de importación y envío gratis"). Precio + esos cargos = lo que Amazon cobra en el checkout.
+// 2) Desglose del popover (solo si ya está cargado en la página): "Envío de AmazonGlobal … Cargos estimados de
+//    importación … Total …".
 function parseAmazonGlobal(doc, store) {
   // El panel trae <script>s inline: se quitan para no leer "Total" ni números del código.
   const panel = doc.querySelector('#amazonGlobal_feature_div')?.cloneNode(true);
   panel?.querySelectorAll('script,style').forEach((n) => n.remove());
-  const text = (panel?.textContent ?? '').replace(/[\s ]+/g, ' ');
+  const text = (panel?.textContent ?? '').replace(/[\s ]+/g, ' ').trim();
   const grab = (re) => {
     const m = text.match(re);
     const n = m ? parseAmount(m[1], store.locale) : NaN;
     return Number.isFinite(n) && n >= 0 ? n : null;
   };
+  const cargos = grab(/^[^\d\s]{0,4}\s?([\d.,]+)\s?€?\s+(?=de cargos|cargos|Shipping|Import|Fees)/i);
   const envio = grab(/(?:Env[ií]o de AmazonGlobal|AmazonGlobal Shipping)\s*[^\d]*?([\d.,]+)/i);
-  if (envio === null) return null;
+  const total = grab(/\bTotal\s*[^\d]*?([\d.,]+)/i);
+  if (cargos === null && envio === null) return null;
   return {
+    cargos,
     envio,
     importacion: grab(/(?:Cargos estimados de importaci[oó]n|Estimated import (?:fees|charges))\s*[^\d]*?([\d.,]+)/i),
-    total: grab(/\bTotal\s*[^\d]*?([\d.,]+)/i),
+    total,
   };
 }
 
@@ -72,17 +77,21 @@ export function parseProduct(doc, hostname) {
   const amounts = texts.map((t) => parseAmount(t, store.locale));
   if (amounts.some((a) => !Number.isFinite(a) || a <= 0)) return { ok: false, error: 'PRICE_NOT_FOUND' };
 
+  const precio = { min: Math.min(...amounts), max: Math.max(...amounts) };
   const global = parseAmazonGlobal(doc, store);
-  const ship = global
+  // Total real de Amazon: precio + cargos (línea resumen), o el Total del desglose. Con un rango de variantes no hay total.
+  const amazonTotal = !global || precio.min !== precio.max
+    ? null
+    : global.cargos !== null ? precio.min + global.cargos : global.total;
+  const ship = global?.envio != null
     ? { envio: global.envio, envioIncluyeImportFees: false }
     : shippingFromText(doc.querySelector(DELIVERY)?.textContent ?? '', store);
   return {
     ok: true,
     moneda: store.moneda,
-    precio: { min: Math.min(...amounts), max: Math.max(...amounts) },
+    precio,
     ...ship,
-    // Lo que Amazon estima (importación y total): solo para compararlo en el popup.
-    ...(global ? { amazon: { importacion: global.importacion, total: global.total } } : {}),
+    ...(amazonTotal !== null ? { amazon: { importacion: global.importacion, total: amazonTotal } } : {}),
   };
 }
 

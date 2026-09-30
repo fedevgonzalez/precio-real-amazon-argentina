@@ -145,7 +145,7 @@ describe('parseSearchCards (página de resultados)', () => {
 });
 
 describe('envío exacto desde el desglose de AmazonGlobal', () => {
-  const panel = (rows) => `<div id="amazonGlobal_feature_div"><span>US$37.13 de cargos de envío e importación a Argentina</span> <div>Detalles de envío y tarifa ${rows}</div></div>`;
+  const panel = (rows, resumen = 'US$37.13 de cargos de envío e importación a Argentina') => `<div id="amazonGlobal_feature_div"><span>${resumen}</span> <div>Detalles de envío y tarifa ${rows}</div></div>`;
   const ROWS = 'Precio US$23.98 Envío de AmazonGlobal US$26.52 Cargos estimados de importación US$10.61 Total US$61.11';
 
   it('lee el envío real (no null) y lo que Amazon estima; no duplica impuestos', () => {
@@ -157,24 +157,24 @@ describe('envío exacto desde el desglose de AmazonGlobal', () => {
   });
 
   it('miles con coma (US$1,026.52) y envío 0 gratis', () => {
-    const d = doc(core(price('US$899.00')) + panel('Precio US$899.00 Envío de AmazonGlobal US$0.00 Cargos estimados de importación US$189.00 Total US$1,088.00'));
+    const d = doc(core(price('US$899.00')) + panel('Precio US$899.00 Envío de AmazonGlobal US$0.00 Cargos estimados de importación US$189.00 Total US$1,088.00', 'US$189.00 de cargos de importación y envío gratis a Argentina'));
     const r = parseProduct(d, 'www.amazon.com');
     expect(r.envio).toBe(0);
     expect(r.amazon.total).toBe(1088);
   });
 
   it('amazon.es: coma decimal', () => {
-    const d = doc(core(price('33,05 €')) + panel('Precio 33,05 € Envío de AmazonGlobal 30,50 € Cargos estimados de importación 13,35 € Total 76,90 €'));
+    const d = doc(core(price('33,05 €')) + panel('Precio 33,05 € Envío de AmazonGlobal 30,50 € Cargos estimados de importación 13,35 € Total 76,90 €', '43,85 € de cargos de envío e importación a Argentina'));
     const r = parseProduct(d, 'www.amazon.es');
     expect(r).toMatchObject({ envio: 30.5, amazon: { importacion: 13.35, total: 76.9 } });
   });
 
-  it('solo la línea resumen sin el desglose → sigue siendo desconocido (conservador)', () => {
+  it('solo la línea resumen sin el desglose: envío suelto desconocido, pero el total de Amazon sí', () => {
     const d = doc(core(price('US$23.98')) + delivery('$37.13 Shipping & Import Fees Deposit to Argentina') + '<div id="amazonGlobal_feature_div"><span>US$37.13 de cargos de envío e importación a Argentina</span></div>');
     const r = parseProduct(d, 'www.amazon.com');
     expect(r.envio).toBeNull();
     expect(r.envioIncluyeImportFees).toBe(true);
-    expect(r.amazon).toBeUndefined();
+    expect(r.amazon.total).toBeCloseTo(61.11);
   });
 });
 
@@ -185,5 +185,35 @@ describe('panel de AmazonGlobal con scripts inline', () => {
     const r = parseProduct(doc(html), 'www.amazon.com');
     expect(r.envio).toBe(0);
     expect(r.amazon).toEqual({ importacion: 1410.2, total: 4910.19 });
+  });
+});
+
+describe('total de Amazon desde la línea resumen (sin el popover cargado)', () => {
+  const resumen = (t) => `<div id="amazonGlobal_feature_div"><script>var t = "Total 999";</script><span>${t}</span> <a>Detalles</a></div>`;
+
+  it('precio + cargos de envío e importación = total de Amazon (US$23.98 + US$37.13 = 61.11)', () => {
+    const d = doc(core(price('US$23.98')) + resumen('US$37.13 de cargos de envío e importación a Argentina'));
+    const r = parseProduct(d, 'www.amazon.com');
+    expect(r.amazon.total).toBeCloseTo(61.11);
+    expect(r.envio).toBeNull(); // el envío suelto no se conoce, pero el total sí
+  });
+
+  it('"cargos de importación y envío gratis" (producto caro): US$3,499.99 + US$1,410.20', () => {
+    const d = doc(core(price('US$3,499.99')) + resumen('US$1,410.20 de cargos de importación y envío gratis a Argentina'));
+    expect(parseProduct(d, 'www.amazon.com').amazon.total).toBeCloseTo(4910.19);
+  });
+
+  it('con un rango de precios no hay total de Amazon', () => {
+    const range = `<span class="a-price-range">${price('US$20.00')}${price('US$35.00')}</span>`;
+    const d = doc(core(range) + resumen('US$10.00 de cargos de envío e importación a Argentina'));
+    expect(parseProduct(d, 'www.amazon.com').amazon).toBeUndefined();
+  });
+
+  it('el resultado es el mismo con o sin el desglose del popover cargado', () => {
+    const base = core(price('US$23.98'));
+    const linea = 'US$37.13 de cargos de envío e importación a Argentina';
+    const sin = parseProduct(doc(base + resumen(linea)), 'www.amazon.com');
+    const con = parseProduct(doc(base + `<div id="amazonGlobal_feature_div"><span>${linea}</span> Detalles de envío y tarifa Precio US$23.98 Envío de AmazonGlobal US$26.52 Cargos estimados de importación US$10.61 Total US$61.11</div>`), 'www.amazon.com');
+    expect(con.amazon.total).toBeCloseTo(sin.amazon.total);
   });
 });

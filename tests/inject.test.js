@@ -4,7 +4,7 @@ import { buildBlock, mount, renderSignature, buildCardLine, mountCardLine } from
 
 const doc = () => new DOMParser().parseFromString('<body><div id="corePrice_feature_div"></div></body>', 'text/html');
 const ok = (blueArs, tarjetaArs, masBarata = 'tarjeta') => ({
-  ok: true, fobUsd: 110, franquiciaAplicadaUsd: 110, arancelUsd: 0, ivaUsd: 23.1, totalUsd: 133.1, pagoAmazonUsd: 110, aduanaArs: 23100,
+  ok: true, fobUsd: 110, franquiciaAplicadaUsd: 110, arancelUsd: 0, ivaUsd: 23.1, totalUsd: 133.1, fuente: 'amazon',
   blueArs, tarjetaArs, masBarata, avisos: [],
 });
 const RATES = { blue: 1500, oficial: 1000, eurUsd: 1.1 };
@@ -74,6 +74,16 @@ describe('buildBlock (bloque mínimo)', () => {
   });
 });
 
+describe('marca "~" de estimación', () => {
+  it('total de Amazon → sin "~"; estimación propia → "~" en total y blue', () => {
+    expect(buildBlock(doc(), { results: [ok(199650, 1)] }).textContent).not.toMatch(/~/);
+    const est = { ...ok(199650, 1), fuente: 'estimado' };
+    const t = buildBlock(doc(), { results: [est] }).textContent;
+    expect(t).toMatch(/Total \+ impuestos: ~USD\s?133,10/);
+    expect(t).toMatch(/Blue: ~ARS\s?199\.650/);
+  });
+});
+
 describe('mount', () => {
   it('inserta después del ancla y es idempotente', () => {
     const d = doc();
@@ -120,22 +130,16 @@ describe('renglón por tarjeta (búsqueda)', () => {
 
   it('muestra total + impuestos en USD y blue en ARS en una línea, sin tarjeta ni ⚠', () => {
     const t = buildCardLine(cardDoc(), { results: [ok(199650, 173030)] }).textContent;
-    expect(t).toMatch(/Total \+ imp\.: USD\s?133,10 · Blue: ARS\s?199\.650/);
-    expect(t).not.toMatch(/~|⚠|Tarjeta|tarjeta|173\.030/);
-  });
-
-  it('envío desconocido → "~" delante de los montos', () => {
-    const t = buildCardLine(cardDoc(), { results: [ok(199650, 173030)], envioDesconocido: true }).textContent;
-    expect(t).toMatch(/~USD\s?133,10/);
-    expect(t).toMatch(/Blue: ~ARS\s?199\.650/);
+    expect(t).toMatch(/Total \+ imp\.: ~USD\s?133,10 · Blue: ~ARS\s?199\.650/);
+    expect(t).not.toMatch(/⚠|Tarjeta|tarjeta|173\.030/);
   });
 
   it('rango de precios', () => {
     const lo = ok(100000, 1); lo.totalUsd = 50;
     const hi = ok(200000, 1); hi.totalUsd = 100;
     const t = buildCardLine(cardDoc(), { results: [lo, hi] }).textContent;
-    expect(t).toMatch(/USD\s?50,00\s–\sUSD\s?100,00/);
-    expect(t).toMatch(/ARS\s?100\.000\s–\sARS\s?200\.000/);
+    expect(t).toMatch(/~USD\s?50,00\s–\sUSD\s?100,00/);
+    expect(t).toMatch(/~ARS\s?100\.000\s–\sARS\s?200\.000/);
   });
 
   it('se monta debajo del precio y es idempotente; sin precio → false', () => {

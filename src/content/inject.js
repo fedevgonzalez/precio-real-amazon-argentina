@@ -37,7 +37,9 @@ export function buildBlock(doc, { results = [], notes = [], error = null }) {
 
   const lo = results[0];
   const hi = results[results.length - 1];
-  const range = (fmt, f) => (lo[f] === hi[f] ? fmt.format(lo[f]) : `${fmt.format(lo[f])} – ${fmt.format(hi[f])}`);
+  // "~" = estimación propia; sin "~" es el total que Amazon informa (lo que se cobra en el checkout).
+  const mark = hi.fuente === 'amazon' ? '' : '~';
+  const range = (fmt, f) => (lo[f] === hi[f] ? `${mark}${fmt.format(lo[f])}` : `${mark}${fmt.format(lo[f])} – ${fmt.format(hi[f])}`);
   box.appendChild(el(doc, 'div', `Total + impuestos: ${range(USD, 'totalUsd')}`));
   box.appendChild(el(doc, 'div', `Blue: ${range(ARS, 'blueArs')}`, 'font-weight:600'));
   if (hasWarnings(results, notes)) {
@@ -76,13 +78,13 @@ export function mount(doc, block) {
 
 /**
  * Renglón compacto para una tarjeta de la página de búsqueda:
- * "Total + imp.: USD 99,80 · Blue: ARS 150.834". Con envío desconocido, "~" delante de los montos
- * (el envío no está incluido). Sin ⚠ por tarjeta: sería ruido en una lista.
+ * "Total + imp.: ~USD 99,80 · Blue: ~ARS 150.834". En la lista Amazon no informa los cargos de importación
+ * (solo en la página del producto): siempre es una estimación, por eso el "~". Sin ⚠ por tarjeta.
  */
-export function buildCardLine(doc, { results, envioDesconocido = false }) {
+export function buildCardLine(doc, { results }) {
   const lo = results[0];
   const hi = results[results.length - 1];
-  const mark = envioDesconocido ? '~' : '';
+  const mark = '~';
   const range = (fmt, f) => (lo[f] === hi[f] ? `${mark}${fmt.format(lo[f])}` : `${mark}${fmt.format(lo[f])} – ${fmt.format(hi[f])}`);
   const line = el(doc, 'div', `Total + imp.: ${range(USD, 'totalUsd')} · Blue: ${range(ARS, 'blueArs')}`,
     'margin:2px 0;font-size:13px;line-height:1.3;color:#067d62;font-weight:600');

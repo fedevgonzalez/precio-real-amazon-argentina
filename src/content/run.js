@@ -46,7 +46,7 @@ async function updateSearch(gen) {
         .map((precio) => calc({ precio, envio: product.envio ?? 0, moneda: product.moneda }, res.rates, settings, rules));
       if (results.some((r) => !r.ok)) continue;
       card.dataset.aarSig = sig;
-      mountCardLine(card, buildCardLine(document, { results, envioDesconocido: product.envio === null }));
+      mountCardLine(card, buildCardLine(document, { results }));
     }
   } finally {
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
@@ -106,8 +106,11 @@ async function update() {
     notes.push({ code: 'STALE_RATES', minutes: Math.round((Date.now() - Math.min(...edades)) / 60000) });
   }
   if (res.discrepancy) notes.push({ code: 'RATES_DISCREPANCY' });
-  if (product.envioIncluyeImportFees) notes.push({ code: 'ENVIO_CON_IMPORT_FEES' });
-  else if (product.envio === null) notes.push({ code: 'ENVIO_NO_INCLUIDO' });
+  // Con el total de Amazon el envío ya está incluido: no hay nada que avisar.
+  if (!product.amazon) {
+    if (product.envioIncluyeImportFees) notes.push({ code: 'ENVIO_CON_IMPORT_FEES' });
+    else if (product.envio === null) notes.push({ code: 'ENVIO_NO_INCLUIDO' });
+  }
 
   lastDetails = {
     moneda: product.moneda,
