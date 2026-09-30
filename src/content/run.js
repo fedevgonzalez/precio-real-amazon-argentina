@@ -17,8 +17,13 @@ async function update() {
   const gen = ++generation;
   const product = parseProduct(document, location.hostname);
   if (!product.ok) {
-    lastSignature = null;
-    document.getElementById('aar-block')?.remove();
+    if (product.error === 'NO_SHIP_TO_AR') {
+      // El spec pide mostrarlo explícito; el resto de los errores de parser no inyectan nada.
+      mountIfChanged('error:NO_SHIP_TO_AR', () => buildBlock(document, { error: 'NO_SHIP_TO_AR' }));
+    } else {
+      lastSignature = null;
+      document.getElementById('aar-block')?.remove();
+    }
     console.warn('[aar] sin cálculo:', product.error);
     return;
   }

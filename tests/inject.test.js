@@ -65,6 +65,12 @@ describe('buildBlock', () => {
     expect(b.textContent).not.toMatch(/\$\s?\d/);
   });
 
+  it('NO_SHIP_TO_AR → "No se envía a Argentina." sin números', () => {
+    const b = buildBlock(doc(), { error: 'NO_SHIP_TO_AR' });
+    expect(b.textContent).toMatch(/No se envía a Argentina\./);
+    expect(b.textContent).not.toMatch(/\d/);
+  });
+
   it('no interpreta HTML en las notas', () => {
     const b = buildBlock(doc(), { results: [ok(1, 2)], rates: RATES, fetchedAt: Date.now(), notes: [{ code: '<img src=x onerror=alert(1)>' }] });
     expect(b.querySelector('img')).toBeNull();

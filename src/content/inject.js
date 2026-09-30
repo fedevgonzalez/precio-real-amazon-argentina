@@ -25,7 +25,8 @@ export function buildBlock(doc, { results = [], rates, fetchedAt, notes = [], er
   box.appendChild(el(doc, 'strong', 'Precio real en Argentina'));
 
   if (error) {
-    box.appendChild(el(doc, 'div', 'Sin cotización disponible.'));
+    const msg = error === 'NO_SHIP_TO_AR' ? 'No se envía a Argentina.' : 'Sin cotización disponible.';
+    box.appendChild(el(doc, 'div', msg));
     return box;
   }
 
