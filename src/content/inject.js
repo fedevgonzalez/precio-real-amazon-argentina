@@ -1,6 +1,7 @@
 // Montos con código ("ARS 150.834", "USD 99,80"): el símbolo "$" confunde junto a los precios USD de Amazon.
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', currencyDisplay: 'code', maximumFractionDigits: 0 });
 const USD = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', currencyDisplay: 'code', maximumFractionDigits: 2 });
+const EUR = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'EUR', currencyDisplay: 'code', maximumFractionDigits: 2 });
 const ANCHORS = '#corePrice_feature_div, #corePriceDisplay_desktop_feature_div, #apex_desktop';
 
 const ERROR_TEXT = {
@@ -40,6 +41,8 @@ export function buildBlock(doc, { results = [], notes = [], error = null }) {
   // "~" = estimación propia; sin "~" es el total que Amazon informa (lo que se cobra en el checkout).
   const mark = hi.fuente === 'amazon' ? '' : '~';
   const range = (fmt, f) => (lo[f] === hi[f] ? `${mark}${fmt.format(lo[f])}` : `${mark}${fmt.format(lo[f])} – ${fmt.format(hi[f])}`);
+  // En amazon.es el precio nace en euros: una línea más con el total en EUR, antes de su conversión a USD y a blue.
+  if (hi.moneda === 'EUR') box.appendChild(el(doc, 'div', `Total en EUR: ${range(EUR, 'totalMoneda')}`));
   box.appendChild(el(doc, 'div', `Total + impuestos: ${range(USD, 'totalUsd')}`));
   box.appendChild(el(doc, 'div', `Blue: ${range(ARS, 'blueArs')}`, 'font-weight:600'));
   if (hasWarnings(results, notes)) {
@@ -86,9 +89,10 @@ export function buildCardLine(doc, { results }) {
   const hi = results[results.length - 1];
   const mark = hi.fuente === 'amazon' ? '' : '~';
   const range = (fmt, f) => (lo[f] === hi[f] ? `${mark}${fmt.format(lo[f])}` : `${mark}${fmt.format(lo[f])} – ${fmt.format(hi[f])}`);
-  const line = el(doc, 'div', `Total + imp.: ${range(USD, 'totalUsd')} · Blue: ${range(ARS, 'blueArs')}`,
-    'margin:2px 0;font-size:13px;line-height:1.3;color:#067d62;font-weight:600');
+  const line = el(doc, 'div', undefined, 'margin:2px 0;font-size:13px;line-height:1.3;color:#067d62;font-weight:600');
   line.className = 'aar-card';
+  if (hi.moneda === 'EUR') line.appendChild(el(doc, 'div', `Total en EUR: ${range(EUR, 'totalMoneda')}`));
+  line.appendChild(el(doc, 'div', `Total + imp.: ${range(USD, 'totalUsd')} · Blue: ${range(ARS, 'blueArs')}`));
   return line;
 }
 

@@ -14,6 +14,7 @@ function noteText(n) {
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', currencyDisplay: 'code', maximumFractionDigits: 0 });
 const USD = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', currencyDisplay: 'code', maximumFractionDigits: 2 });
 const NUM = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 });
+const EUR_CODE = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'EUR', currencyDisplay: 'code', maximumFractionDigits: 2 });
 const EUR2 = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export const EMPTY_TEXT = 'Abrí un producto de amazon.com o amazon.es para ver el detalle.';
@@ -63,6 +64,12 @@ export function buildDetails(doc, details) {
     total.textContent = `${delAmazon ? '' : '~'}${rango(USD, 'totalUsd')}`;
   }
   box.append(total);
+
+  if (moneda === 'EUR') {
+    const eur = el(doc, 'p', 'eur');
+    eur.append(el(doc, 'span', 'k', 'Total en EUR'), el(doc, 'span', 'v', `${delAmazon ? '' : '~'}${rango(EUR_CODE, 'totalMoneda')}`));
+    box.append(eur);
+  }
 
   const blue = el(doc, 'p', 'blue');
   blue.append(el(doc, 'span', 'k', 'Blue'), el(doc, 'span', 'v', `${delAmazon ? '' : '~'}${rango(ARS, 'blueArs')}`));

@@ -37,6 +37,8 @@ export function calc(item, rates, settings, rules) {
   return {
     ok: true,
     fobUsd, franquiciaAplicadaUsd, arancelUsd, ivaUsd, totalUsd,
+    moneda,
+    totalMoneda: totalUsd / conv, // total en la moneda del producto (EUR en amazon.es)
     fuente: usaAmazon ? 'amazon' : 'estimado',
     blueArs, tarjetaArs,
     masBarata: blueArs <= tarjetaArs ? 'blue' : 'tarjeta',

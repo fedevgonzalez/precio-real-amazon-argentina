@@ -37,6 +37,12 @@ describe('buildDetails', () => {
     expect(est.querySelector('.blue .v').textContent).toMatch(/^~ARS/);
   });
 
+  it('EUR: fila con el total en EUR entre el USD y el blue; USD: sin esa fila', () => {
+    const eur = buildDetails(doc(), details({ moneda: 'EUR', precio: { min: 100, max: 100 }, results: [{ ...result, moneda: 'EUR', totalMoneda: 100 }] }));
+    expect(eur.querySelector('.eur').textContent).toMatch(/Total en EUR\s?~EUR\s?100,00/);
+    expect(buildDetails(doc(), details()).querySelector('.eur')).toBeNull();
+  });
+
   it('nunca muestra tarjeta ni dólar tarjeta', () => {
     expect(buildDetails(doc(), details()).textContent).not.toMatch(/tarjeta|Tarjeta|173\.030/);
   });

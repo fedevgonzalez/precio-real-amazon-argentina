@@ -84,6 +84,33 @@ describe('marca "~" de estimación', () => {
   });
 });
 
+describe('línea extra con el total en EUR (amazon.es)', () => {
+  const eurRes = (over = {}) => ({ ...ok(165000, 1), moneda: 'EUR', totalMoneda: 100, totalUsd: 110, fuente: 'estimado', ...over });
+
+  it('EUR: primero el total en EUR, después USD y blue', () => {
+    const t = buildBlock(doc(), { results: [eurRes()] }).textContent;
+    expect(t).toMatch(/Total en EUR: ~EUR\s?100,00Total \+ impuestos: ~USD\s?110,00Blue: ~ARS\s?165\.000/);
+  });
+
+  it('USD (amazon.com): no hay línea en EUR', () => {
+    expect(buildBlock(doc(), { results: [ok(199650, 1)] }).textContent).not.toMatch(/EUR/);
+  });
+
+  it('rango en EUR', () => {
+    const t = buildBlock(doc(), { results: [eurRes({ totalMoneda: 50 }), eurRes({ totalMoneda: 100 })] }).textContent;
+    expect(t).toMatch(/Total en EUR: ~EUR\s?50,00\s–\sEUR\s?100,00/);
+  });
+
+  it('tarjeta de la lista: línea en EUR arriba de la de USD y blue', () => {
+    const d = doc();
+    const line = buildCardLine(d, { results: [eurRes()] });
+    expect(line.children).toHaveLength(2);
+    expect(line.children[0].textContent).toMatch(/^Total en EUR: ~EUR\s?100,00$/);
+    expect(line.children[1].textContent).toMatch(/^Total \+ imp\.: ~USD\s?110,00 · Blue: ~ARS\s?165\.000$/);
+    expect(buildCardLine(d, { results: [ok(1, 2)] }).children).toHaveLength(1);
+  });
+});
+
 describe('mount', () => {
   it('inserta después del ancla y es idempotente', () => {
     const d = doc();

@@ -64,6 +64,15 @@ describe('calc', () => {
     expect(r.tarjetaArs).toBe(143000);
   });
 
+  it('expone el total en la moneda del producto (EUR) además del USD', () => {
+    const eur = run({ precio: 100, envio: 0, moneda: 'EUR' });
+    expect(eur.moneda).toBe('EUR');
+    expect(eur.totalMoneda).toBeCloseTo(100); // (100 ÷ 1,21) × 1,21 EUR
+    expect(eur.totalUsd).toBeCloseTo(110);
+    const usd = run({ precio: 100, envio: 0, moneda: 'USD' });
+    expect(usd.totalMoneda).toBeCloseTo(usd.totalUsd);
+  });
+
   it('EUR contra dos checkouts reales de amazon.es (Importe total)', () => {
     const eur = { blue: 1500, oficial: 1000, eurUsd: 1 };
     const total = (precio, envio) => calc({ precio, envio, moneda: 'EUR' }, eur, S, RULES).totalUsd;
