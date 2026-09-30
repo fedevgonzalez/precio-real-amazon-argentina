@@ -53,4 +53,13 @@ describe('buildDetails', () => {
   it.each([[null], [undefined], [{ results: [] }]])('sin datos (%j) → texto de estado vacío', (d) => {
     expect(buildDetails(doc(), d).textContent).toBe(EMPTY_TEXT);
   });
+
+  it('muestra lo que Amazon estima para comparar', () => {
+    const t = buildDetails(doc(), details({ amazon: { importacion: 10.61, total: 61.11 } })).textContent;
+    expect(t).toMatch(/Amazon estima: total USD\s?61,11 \(importación USD\s?10,61\)/);
+  });
+
+  it('sin datos de Amazon no inventa la línea', () => {
+    expect(buildDetails(doc(), details()).textContent).not.toMatch(/Amazon estima/);
+  });
 });

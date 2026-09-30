@@ -37,6 +37,25 @@ function shippingFromText(text, store) {
   return { envio: Number.isFinite(envio) ? envio : null, envioIncluyeImportFees: false };
 }
 
+// Amazon trae dentro de la página el desglose del popover "Detalles de envío y tarifa":
+// "Precio … Envío de AmazonGlobal US$26.52 Cargos estimados de importación US$10.61 Total US$61.11".
+// Es el dato exacto del envío (la línea resumen "US$37.13 de cargos de envío e importación" los suma).
+function parseAmazonGlobal(doc, store) {
+  const text = (doc.querySelector('#amazonGlobal_feature_div')?.textContent ?? '').replace(/[\s ]+/g, ' ');
+  const grab = (re) => {
+    const m = text.match(re);
+    const n = m ? parseAmount(m[1], store.locale) : NaN;
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+  const envio = grab(/(?:Env[ií]o de AmazonGlobal|AmazonGlobal Shipping)\s*[^\d]*?([\d.,]+)/i);
+  if (envio === null) return null;
+  return {
+    envio,
+    importacion: grab(/(?:Cargos estimados de importaci[oó]n|Estimated import (?:fees|charges))\s*[^\d]*?([\d.,]+)/i),
+    total: grab(/\bTotal\s*[^\d]*?([\d.,]+)/i),
+  };
+}
+
 export function parseProduct(doc, hostname) {
   const store = STORES.find((s) => s.host.test(hostname));
   if (!store) return { ok: false, error: 'UNSUPPORTED_HOST' };
@@ -50,11 +69,17 @@ export function parseProduct(doc, hostname) {
   const amounts = texts.map((t) => parseAmount(t, store.locale));
   if (amounts.some((a) => !Number.isFinite(a) || a <= 0)) return { ok: false, error: 'PRICE_NOT_FOUND' };
 
+  const global = parseAmazonGlobal(doc, store);
+  const ship = global
+    ? { envio: global.envio, envioIncluyeImportFees: false }
+    : shippingFromText(doc.querySelector(DELIVERY)?.textContent ?? '', store);
   return {
     ok: true,
     moneda: store.moneda,
     precio: { min: Math.min(...amounts), max: Math.max(...amounts) },
-    ...shippingFromText(doc.querySelector(DELIVERY)?.textContent ?? '', store),
+    ...ship,
+    // Lo que Amazon estima (importación y total): solo para compararlo en el popup.
+    ...(global ? { amazon: { importacion: global.importacion, total: global.total } } : {}),
   };
 }
 

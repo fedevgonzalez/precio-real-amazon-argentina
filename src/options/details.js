@@ -46,6 +46,11 @@ export function buildDetails(doc, details) {
   box.appendChild(row(doc, 'Tributos de aduana (en pesos, al courier)', range(ARS, 'aduanaArs')));
   box.appendChild(row(doc, 'Blue', range(ARS, 'blueArs')));
 
+  if (details.amazon?.total != null) {
+    const imp = details.amazon.importacion != null ? ` (importación ${money(details.amazon.importacion)})` : '';
+    box.appendChild(row(doc, 'Amazon estima', `total ${money(details.amazon.total)}${imp}`));
+  }
+
   if (rates) {
     const hora = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('es-AR') : '—';
     const eur = rates.eurUsd ? `, EUR/USD ${rates.eurUsd}` : '';

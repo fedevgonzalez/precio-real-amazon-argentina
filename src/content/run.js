@@ -112,6 +112,7 @@ async function update() {
     precio: product.precio,
     envio: product.envio,
     envioIncluyeImportFees: !!product.envioIncluyeImportFees,
+    amazon: product.amazon ?? null,
     results,
     rates: res.rates,
     fetchedAt: res.fetchedAt,

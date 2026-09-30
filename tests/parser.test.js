@@ -143,3 +143,37 @@ describe('parseSearchCards (página de resultados)', () => {
     expect(parseSearchCards(d, 'www.amazon.de')).toEqual([]);
   });
 });
+
+describe('envío exacto desde el desglose de AmazonGlobal', () => {
+  const panel = (rows) => `<div id="amazonGlobal_feature_div"><span>US$37.13 de cargos de envío e importación a Argentina</span> <div>Detalles de envío y tarifa ${rows}</div></div>`;
+  const ROWS = 'Precio US$23.98 Envío de AmazonGlobal US$26.52 Cargos estimados de importación US$10.61 Total US$61.11';
+
+  it('lee el envío real (no null) y lo que Amazon estima; no duplica impuestos', () => {
+    const d = doc(core(price('US$23.98')) + delivery('Entrega GRATIS el martes a Argentina en pedidos elegibles de más de $99') + panel(ROWS));
+    expect(parseProduct(d, 'www.amazon.com')).toEqual({
+      ok: true, moneda: 'USD', precio: { min: 23.98, max: 23.98 },
+      envio: 26.52, envioIncluyeImportFees: false, amazon: { importacion: 10.61, total: 61.11 },
+    });
+  });
+
+  it('miles con coma (US$1,026.52) y envío 0 gratis', () => {
+    const d = doc(core(price('US$899.00')) + panel('Precio US$899.00 Envío de AmazonGlobal US$0.00 Cargos estimados de importación US$189.00 Total US$1,088.00'));
+    const r = parseProduct(d, 'www.amazon.com');
+    expect(r.envio).toBe(0);
+    expect(r.amazon.total).toBe(1088);
+  });
+
+  it('amazon.es: coma decimal', () => {
+    const d = doc(core(price('33,05 €')) + panel('Precio 33,05 € Envío de AmazonGlobal 30,50 € Cargos estimados de importación 13,35 € Total 76,90 €'));
+    const r = parseProduct(d, 'www.amazon.es');
+    expect(r).toMatchObject({ envio: 30.5, amazon: { importacion: 13.35, total: 76.9 } });
+  });
+
+  it('solo la línea resumen sin el desglose → sigue siendo desconocido (conservador)', () => {
+    const d = doc(core(price('US$23.98')) + delivery('$37.13 Shipping & Import Fees Deposit to Argentina') + '<div id="amazonGlobal_feature_div"><span>US$37.13 de cargos de envío e importación a Argentina</span></div>');
+    const r = parseProduct(d, 'www.amazon.com');
+    expect(r.envio).toBeNull();
+    expect(r.envioIncluyeImportFees).toBe(true);
+    expect(r.amazon).toBeUndefined();
+  });
+});
