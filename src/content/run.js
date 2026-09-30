@@ -32,6 +32,7 @@ function paused(fn) {
 const FETCH_POOL = 3;
 const MAX_FETCH = 40;
 const TOTAL_TTL_MS = 6 * 3600 * 1000;
+const MAX_TOTALES = 300;
 const cardState = new WeakMap();
 const fetchQueue = [];
 let fetching = 0;
@@ -53,15 +54,26 @@ function renderCard(card) {
   mountCardLine(card, buildCardLine(document, { results }));
 }
 
+// Caché de totales reales por ASIN: un solo objeto en storage.local que se poda al escribir
+// (vencidos fuera y como mucho MAX_TOTALES), para que no crezca sin límite.
+async function guardarTotal(asin, entrada) {
+  const { totales = {} } = await chrome.storage.local.get('totales');
+  totales[asin] = entrada;
+  const vivos = Object.entries(totales)
+    .filter(([, v]) => Date.now() - v.at < TOTAL_TTL_MS)
+    .sort((a, b) => b[1].at - a[1].at)
+    .slice(0, MAX_TOTALES);
+  await chrome.storage.local.set({ totales: Object.fromEntries(vivos) });
+}
+
 async function realTotal(asin, precio) {
-  const key = `tot:${asin}`;
-  const hit = (await chrome.storage.local.get(key))[key];
+  const hit = ((await chrome.storage.local.get('totales')).totales ?? {})[asin];
   if (hit && Date.now() - hit.at < TOTAL_TTL_MS && hit.precio === precio) return hit.total;
   try {
     const r = await fetch(`${location.origin}/dp/${asin}?th=1`, { credentials: 'include' });
     if (!r.ok) return null; // bloqueado o caído: queda la estimación y se reintenta en otra visita
     const total = amazonTotalFromHtml(await r.text(), location.hostname, precio);
-    await chrome.storage.local.set({ [key]: { total, precio, at: Date.now() } });
+    await guardarTotal(asin, { total, precio, at: Date.now() });
     return total;
   } catch {
     return null;

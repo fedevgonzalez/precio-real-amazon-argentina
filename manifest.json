@@ -2,19 +2,29 @@
   "manifest_version": 3,
   "name": "Precio real Amazon Argentina",
   "version": "0.1.0",
-  "description": "Muestra en Amazon el costo final en pesos argentinos (dólar blue y tarjeta) con impuestos de importación.",
-  "permissions": ["storage"],
+  "description": "Muestra en Amazon el total en USD y en pesos al dólar blue, con impuestos de importación a Argentina. No afiliada a Amazon.",
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://dolarapi.com/*",
     "https://api.bluelytics.com.ar/*",
     "https://api.frankfurter.dev/*",
     "https://open.er-api.com/*"
   ],
-  "background": { "service_worker": "src/background/worker.js", "type": "module" },
+  "background": {
+    "service_worker": "src/background/worker.js",
+    "type": "module"
+  },
   "content_scripts": [
     {
-      "matches": ["https://www.amazon.com/*", "https://www.amazon.es/*"],
-      "js": ["src/content/loader.js"],
+      "matches": [
+        "https://www.amazon.com/*",
+        "https://www.amazon.es/*"
+      ],
+      "js": [
+        "src/content/loader.js"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -28,9 +38,25 @@
         "src/core/settings.js",
         "src/core/rules.json"
       ],
-      "matches": ["https://www.amazon.com/*", "https://www.amazon.es/*"]
+      "matches": [
+        "https://www.amazon.com/*",
+        "https://www.amazon.es/*"
+      ]
     }
   ],
   "options_page": "src/options/options.html",
-  "action": { "default_popup": "src/options/options.html" }
+  "action": {
+    "default_popup": "src/options/options.html",
+    "default_title": "Precio real Amazon Argentina",
+    "default_icon": {
+      "16": "src/icons/icon16.png",
+      "48": "src/icons/icon48.png",
+      "128": "src/icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "src/icons/icon16.png",
+    "48": "src/icons/icon48.png",
+    "128": "src/icons/icon128.png"
+  }
 }
