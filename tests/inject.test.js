@@ -13,7 +13,8 @@ describe('buildBlock (bloque mínimo)', () => {
   it('muestra solo total + impuestos en USD y blue en ARS', () => {
     const b = buildBlock(doc(), { results: [ok(199650, 173030)] });
     expect(b.id).toBe('aar-block');
-    expect(b.textContent).toMatch(/Precio real en Argentina/);
+    expect(b.textContent).not.toMatch(/Precio real en Argentina/); // vista compacta: sin título ni caja
+    expect(b.style.border).toBe('');
     expect(b.textContent).toMatch(/Total \+ imp\.: USD\s?133,10/);
     expect(b.textContent).toMatch(/Blue: ARS\s?199\.650/);
   });

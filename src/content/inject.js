@@ -22,31 +22,38 @@ export function hasWarnings(results, notes) {
   return notes.length > 0 || results.some((r) => r.avisos.length > 0);
 }
 
+const ESTILO = 'font-size:13px;line-height:1.3;color:#067d62;font-weight:600';
+
 /**
- * Bloque mínimo de la página: total con impuestos en USD y precio en blue en pesos.
- * Todo el resto (desglose, notas, ajustes) vive en el popup de la extensión.
+ * Los renglones de una vista compacta, iguales en la página de producto y en la lista:
+ * "Total en EUR: ~EUR 126,69" (solo amazon.es), "Total + imp.: ~USD 143,86", "Blue: ~ARS 224.415".
+ * "~" = estimación propia; sin "~" es el total que Amazon informa (lo que se cobra en el checkout).
+ */
+function renglones(doc, results) {
+  const lo = results[0];
+  const hi = results[results.length - 1];
+  const mark = hi.fuente === 'amazon' ? '' : '~';
+  const range = (fmt, f) => (lo[f] === hi[f] ? `${mark}${fmt.format(lo[f])}` : `${mark}${fmt.format(lo[f])} – ${fmt.format(hi[f])}`);
+  const out = [];
+  if (hi.moneda === 'EUR') out.push(el(doc, 'div', `Total en EUR: ${range(EUR, 'totalMoneda')}`));
+  out.push(el(doc, 'div', `Total + imp.: ${range(USD, 'totalUsd')}`), el(doc, 'div', `Blue: ${range(ARS, 'blueArs')}`));
+  return out;
+}
+
+/**
+ * Bloque de la página de producto: los renglones compactos, sin caja ni título, y una línea "⚠" si algo
+ * puede cambiar el número. Todo el resto (desglose, avisos, ajustes) vive en el popup de la extensión.
  */
 export function buildBlock(doc, { results = [], notes = [], error = null }) {
-  const box = el(doc, 'div', undefined, 'margin:8px 0;padding:8px 12px;border:1px solid #067d62;border-radius:8px;font-size:14px;line-height:1.4');
+  const box = el(doc, 'div', undefined, `margin:6px 0;${ESTILO}`);
   box.id = 'aar-block';
-  box.appendChild(el(doc, 'strong', 'Precio real en Argentina'));
-
   if (error) {
     box.appendChild(el(doc, 'div', ERROR_TEXT[error] ?? ERROR_TEXT.NO_RATES));
     return box;
   }
-
-  const lo = results[0];
-  const hi = results[results.length - 1];
-  // "~" = estimación propia; sin "~" es el total que Amazon informa (lo que se cobra en el checkout).
-  const mark = hi.fuente === 'amazon' ? '' : '~';
-  const range = (fmt, f) => (lo[f] === hi[f] ? `${mark}${fmt.format(lo[f])}` : `${mark}${fmt.format(lo[f])} – ${fmt.format(hi[f])}`);
-  // En amazon.es el precio nace en euros: una línea más con el total en EUR, antes de su conversión a USD y a blue.
-  if (hi.moneda === 'EUR') box.appendChild(el(doc, 'div', `Total en EUR: ${range(EUR, 'totalMoneda')}`));
-  box.appendChild(el(doc, 'div', `Total + imp.: ${range(USD, 'totalUsd')}`));
-  box.appendChild(el(doc, 'div', `Blue: ${range(ARS, 'blueArs')}`, 'font-weight:600'));
+  box.append(...renglones(doc, results));
   if (hasWarnings(results, notes)) {
-    box.appendChild(el(doc, 'div', '⚠ Ver detalle en la extensión', 'color:#b12704;font-size:12px'));
+    box.appendChild(el(doc, 'div', '⚠ Ver detalle en la extensión', 'color:#b12704;font-size:12px;font-weight:400'));
   }
   return box;
 }
@@ -80,21 +87,14 @@ export function mount(doc, block) {
 }
 
 /**
- * Renglón compacto para una tarjeta de la página de búsqueda:
- * Tres renglones (el primero solo en amazon.es): "Total en EUR: ~EUR 126,69", "Total + imp.: ~USD 143,86",
- * "Blue: ~ARS 224.415". En la lista Amazon no informa los cargos de importación
- * (solo en la página del producto): es una estimación ("~") hasta que se lee el total real. Sin ⚠ por tarjeta.
+ * Renglones para una tarjeta de la página de búsqueda (los mismos que en el producto). En la lista Amazon no
+ * informa los cargos de importación (solo en la página del producto): es una estimación ("~") hasta que se
+ * lee el total real. Sin ⚠ por tarjeta.
  */
 export function buildCardLine(doc, { results }) {
-  const lo = results[0];
-  const hi = results[results.length - 1];
-  const mark = hi.fuente === 'amazon' ? '' : '~';
-  const range = (fmt, f) => (lo[f] === hi[f] ? `${mark}${fmt.format(lo[f])}` : `${mark}${fmt.format(lo[f])} – ${fmt.format(hi[f])}`);
-  const line = el(doc, 'div', undefined, 'margin:2px 0;font-size:13px;line-height:1.3;color:#067d62;font-weight:600');
+  const line = el(doc, 'div', undefined, `margin:2px 0;${ESTILO}`);
   line.className = 'aar-card';
-  if (hi.moneda === 'EUR') line.appendChild(el(doc, 'div', `Total en EUR: ${range(EUR, 'totalMoneda')}`));
-  line.appendChild(el(doc, 'div', `Total + imp.: ${range(USD, 'totalUsd')}`));
-  line.appendChild(el(doc, 'div', `Blue: ${range(ARS, 'blueArs')}`));
+  line.append(...renglones(doc, results));
   return line;
 }
 
