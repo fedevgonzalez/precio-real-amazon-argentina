@@ -43,35 +43,46 @@ async function resolveRate(name, fetchFn, rules) {
 export async function getRates({ fetchFn, storage, rules, now = Date.now }) {
   const cached = await storage.get('rates');
   const ttl = rules.cache.minutos * 60_000;
+  const names = ['blue', 'oficial', 'eurUsd'];
+  // Timestamp por tasa; una caché vieja (solo fetchedAt) cuenta como si todas fueran de fetchedAt.
+  const cachedAt = (n) => cached?.ratesAt?.[n] ?? (cached?.rates?.[n] ? cached.fetchedAt : undefined);
+
   // Vigente solo si está completa: sin eurUsd hay que reintentar (amazon.es quedaría sin conversión todo el TTL).
-  const cacheLive = cached && now() - cached.fetchedAt < ttl
-    && ['blue', 'oficial', 'eurUsd'].every((n) => cached.rates?.[n]);
-  if (cacheLive) {
-    return { ok: true, rates: cached.rates, fetchedAt: cached.fetchedAt, stale: false, discrepancy: !!cached.discrepancy };
+  if (cached && names.every((n) => cached.rates?.[n]) && now() - Math.min(cachedAt('blue'), cachedAt('oficial')) < ttl) {
+    const ratesAt = Object.fromEntries(names.map((n) => [n, cachedAt(n)]));
+    // Una tasa puntual puede ser más vieja que el TTL (su fuente viene cayendo): se reporta como reusada.
+    const staleRates = names.filter((n) => now() - cachedAt(n) >= ttl);
+    return {
+      ok: true, rates: cached.rates, ratesAt, staleRates,
+      fetchedAt: Math.min(ratesAt.blue, ratesAt.oficial),
+      stale: staleRates.some((n) => n !== 'eurUsd'),
+      discrepancy: !!cached.discrepancy,
+    };
   }
 
-  const names = ['blue', 'oficial', 'eurUsd'];
   const fresh = await Promise.all(names.map((n) => resolveRate(n, fetchFn, rules)));
 
   const rates = {};
-  let reused = false;
-  let stale = false;
+  const ratesAt = {};
+  const staleRates = [];
   let discrepancy = false;
   names.forEach((n, i) => {
     if (fresh[i]) {
       rates[n] = fresh[i].value;
+      ratesAt[n] = now();
       discrepancy ||= fresh[i].discrepancy;
     } else if (cached?.rates?.[n]) {
       rates[n] = cached.rates[n];
-      reused = true;
-      if (n !== 'eurUsd') stale = true;
+      ratesAt[n] = cachedAt(n); // una tasa reusada conserva SU timestamp original
+      staleRates.push(n);
     }
   });
 
   if (!rates.blue || !rates.oficial) return { ok: false, error: 'NO_RATES' };
 
-  if (reused) discrepancy ||= !!cached.discrepancy;
-  const fetchedAt = stale ? cached.fetchedAt : now();
-  await storage.set('rates', { rates, fetchedAt, discrepancy });
-  return { ok: true, rates, fetchedAt, stale, discrepancy };
+  const stale = staleRates.some((n) => n !== 'eurUsd');
+  if (staleRates.length) discrepancy ||= !!cached.discrepancy;
+  const fetchedAt = Math.min(ratesAt.blue, ratesAt.oficial);
+  await storage.set('rates', { rates, ratesAt, fetchedAt, discrepancy });
+  return { ok: true, rates, ratesAt, fetchedAt, stale, staleRates, discrepancy };
 }

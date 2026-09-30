@@ -115,4 +115,36 @@ describe('getRates', () => {
     expect(r.ok).toBe(true);
     expect(r.discrepancy).toBe(true);
   });
+
+  it('tasa reusada de caché conserva SU timestamp original (ratesAt) y figura en staleRates', async () => {
+    const t0 = 1_000_000 - 86_400_000; // eurUsd de ayer, blue/oficial vencidos
+    const cached = { rates: { blue: 1400, oficial: 990, eurUsd: 1.05 }, fetchedAt: t0, discrepancy: false };
+    const map = { ...HAPPY };
+    delete map[U.eur1]; delete map[U.eur2];
+    const storage = makeStorage({ rates: cached });
+    const r = await getRates(ctx(makeFetch(map), storage));
+    expect(r.ok).toBe(true);
+    expect(r.staleRates).toEqual(['eurUsd']);
+    expect(r.stale).toBe(false);
+    expect(r.ratesAt).toEqual({ blue: 1_000_000, oficial: 1_000_000, eurUsd: t0 });
+    expect(r.fetchedAt).toBe(1_000_000); // el más viejo entre blue/oficial (frescos)
+    // Lo guardado conserva el timestamp original del eurUsd, no el del render.
+    expect(storage._m.get('rates').ratesAt.eurUsd).toBe(t0);
+  });
+
+  it('eurUsd viejo en caché vigente: no se refresca ni se sirve como fresco en llamadas repetidas', async () => {
+    // Caché como queda tras el test anterior: blue/oficial frescos, eurUsd reusado y viejo.
+    const t0 = 1_000_000 - 86_400_000;
+    const cached = {
+      rates: { blue: 1500, oficial: 1000, eurUsd: 1.05 },
+      ratesAt: { blue: 1_000_000, oficial: 1_000_000, eurUsd: t0 },
+      fetchedAt: 1_000_000, discrepancy: false,
+    };
+    const fetchFn = makeFetch(HAPPY);
+    const r = await getRates(ctx(fetchFn, makeStorage({ rates: cached })));
+    expect(fetchFn).not.toHaveBeenCalled(); // caché vigente: ni un fetch
+    expect(r.staleRates).toEqual(['eurUsd']); // sigue reportado como reusado
+    expect(r.ratesAt.eurUsd).toBe(t0); // y con su timestamp original
+    expect(r.stale).toBe(false);
+  });
 });

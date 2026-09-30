@@ -34,7 +34,16 @@ async function update() {
   }
 
   const notes = [];
-  if (res.stale) notes.push({ code: 'STALE_RATES', minutes: Math.round((Date.now() - res.fetchedAt) / 60000) });
+  // Nota de cotización vieja: stale (blue/oficial de caché) o un eurUsd reusado cuando el producto es en EUR.
+  const eurStale = res.staleRates?.includes('eurUsd') && product.moneda === 'EUR';
+  if (res.stale || eurStale) {
+    const edades = [
+      res.stale ? res.ratesAt?.blue ?? res.fetchedAt : Infinity,
+      res.stale ? res.ratesAt?.oficial ?? res.fetchedAt : Infinity,
+      eurStale ? res.ratesAt?.eurUsd ?? res.fetchedAt : Infinity,
+    ];
+    notes.push({ code: 'STALE_RATES', minutes: Math.round((Date.now() - Math.min(...edades)) / 60000) });
+  }
   if (res.discrepancy) notes.push({ code: 'RATES_DISCREPANCY' });
   if (product.envioIncluyeImportFees) notes.push({ code: 'ENVIO_CON_IMPORT_FEES' });
   else if (product.envio === null) notes.push({ code: 'ENVIO_NO_INCLUIDO' });
