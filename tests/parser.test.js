@@ -258,9 +258,21 @@ describe('parseCarouselCards (recomendaciones)', () => {
     expect(parse(html)[0].product.precio.min).toBe(74.91);
   });
 
+  it('amazon.es: importe pegado a las reseñas ("1.751" + "32,07 € de envío") no se fusiona', () => {
+    const html = car('B0EEEEEEEE', precio('76,49 €') + '<span>(1.751)</span>32,07 € de envío');
+    expect(parse(html, 'www.amazon.es')[0].product).toMatchObject({ precio: { min: 76.49 }, envio: 32.07 });
+  });
+
   it('tarjeta sin precio o sin disponibilidad → PRICE_NOT_FOUND; miles con coma y amazon.es', () => {
     expect(parse(car('B0BBBBBBBB', '<div>No disponible por el momento.</div>'))[0].product).toEqual({ ok: false, error: 'PRICE_NOT_FOUND' });
     expect(parse(car('B0CCCCCCCC', precio('US$5,999.99')))[0].product.precio.min).toBe(5999.99);
     expect(parse(car('B07MLFBJG3', precio('8,99 €')), 'www.amazon.es')[0].product).toMatchObject({ ok: true, moneda: 'EUR', precio: { min: 8.99 } });
+  });
+});
+
+describe('carrusel: re-lectura con nuestro renglón', () => {
+  it('ignora el texto de .aar-card y no fusiona importes ("ARS 116.519" + "32,35 € de envío")', () => {
+    const d = doc('<ul><li class="a-carousel-card" data-asin="B0FFFFFFFF"><span class="a-price"><span class="a-offscreen">39,90 €</span></span><span class="aar-card">Blue: ~ARS 116.519</span><div>32,35 € de envío</div></li></ul>');
+    expect(parseCarouselCards(d, 'www.amazon.es')[0].product).toMatchObject({ precio: { min: 39.9 }, envio: 32.35 });
   });
 });

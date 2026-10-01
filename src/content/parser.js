@@ -7,7 +7,8 @@ const DELIVERY = '#mir-layout-DELIVERY_BLOCK, #deliveryBlockMessage';
 const NO_SHIP = /cannot be shipped|can't be shipped|does not ship|no se puede enviar|no puede enviarse|no se envía/i;
 const IMPORT_FEES = /import fees|gastos de importaci|tasas de importaci/i;
 const FREE = /\bfree\b|gratis/i;
-const MONEY = /[$€]\s?[\d.,]+|[\d.,]+\s?€/;
+// El lookbehind evita pegar el importe a dígitos vecinos del texto aplanado (reseñas "1.751" + "76,49€").
+const MONEY = /(?<![\d.,])(?:[$€]\s?[\d.,]+|[\d.,]+\s?€)/;
 
 export function parseAmount(text, locale) {
   const m = String(text).replace(/[\s ]/g, '').match(/[\d.,]+/);
@@ -151,7 +152,10 @@ function parseCarouselCard(card, store) {
   const frac = price.querySelector('.a-price-fraction')?.textContent.replace(/\D/g, '');
   const a = whole ? Number(`${whole}.${frac || '0'}`) : parseAmount(node.textContent, store.locale);
   if (!Number.isFinite(a) || a <= 0) return { ok: false, error: 'PRICE_NOT_FOUND' };
-  const flat = card.textContent.replace(/[\s\u00a0]+/g, ' ');
+  // Sin nuestro propio rengl\u00f3n: si no, en la re-lectura su "ARS 116.519" se pega al env\u00edo y se fusionan los importes.
+  const copia = card.cloneNode(true);
+  copia.querySelectorAll('.aar-card').forEach((e) => e.remove());
+  const flat = copia.textContent.replace(/[\s\u00a0]+/g, ' ');
   return { ok: true, moneda: store.moneda, precio: { min: a, max: a }, ...shippingFromCardText(flat, store) };
 }
 
