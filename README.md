@@ -1,45 +1,41 @@
-# Precio real Amazon Argentina
+# Cuánto Me Sale en Argentina — para Amazon
 
-Extensión de Chrome/Edge que muestra, en amazon.com y amazon.es, el costo final en pesos argentinos (dólar blue y tarjeta) con los impuestos de importación por courier.
+Extensión de Chrome/Edge que muestra, **debajo de cada precio de amazon.com y amazon.es**, cuánto te sale de verdad la compra puesta en tu casa en Argentina: total con envío e impuestos de importación en USD (y en EUR en amazon.es) y ese total en pesos al dólar blue.
 
-> Estimación orientativa. Las reglas están en `src/core/rules.json` y su verificación en `docs/rules-verification.md`.
+```
+Total en EUR: ~EUR 56,37      ← solo amazon.es
+Total + imp.: ~USD 64,01
+Blue: ~ARS 99.852
+```
 
-## Instalación
+- **amazon.com, página de producto:** el total es el que Amazon informa y cobra en el checkout (precio + envío + cargos de importación). Sin `~`.
+- **Listas de búsqueda:** cada producto muestra su total; en amazon.com la extensión lo reemplaza por el total real leyendo la página de cada producto.
+- **amazon.es:** Amazon descuenta el IVA de España antes de cobrar el envío a Argentina; la extensión lo modela. Es una estimación (`~`) que en los checkouts probados difiere un 0,4 %.
+- **Popup:** desglose del producto abierto (precio, envío, franquicia de USD 400, arancel, IVA), cotizaciones usadas y avisos, más los ajustes.
 
-1. `npm install` (solo para correr los tests).
-2. Abrí `chrome://extensions` (o `edge://extensions`) y activá **Modo desarrollador**.
-3. **Cargar descomprimida** → elegí esta carpeta.
+> Estimación orientativa: lo que cobra Amazon en el checkout es lo que rige. Extensión independiente, hecha en Argentina; **no está afiliada ni avalada por Amazon**.
 
-## Uso
+## Instalación (modo desarrollador)
 
-Abrí un producto en amazon.com o amazon.es: aparece el bloque "Precio real en Argentina" debajo del precio, con blue, tarjeta, la opción más barata y un desglose desplegable.
-
-El bloque de la página muestra solo **Total + impuestos (USD)** y **Blue (ARS)**; si algo puede cambiar el número (envío desconocido, cotización vieja, fuera del régimen simplificado) agrega `⚠ Ver detalle en la extensión`. El detalle completo del producto abierto (desglose, cotizaciones, avisos) está en el popup de la extensión.
-
-En las **páginas de resultados de búsqueda** (`/s?k=...`) cada producto muestra un renglón `Total + imp.: USD x · Blue: ARS y`; el `~` delante de los montos indica que el envío no está incluido (Amazon no lo informó).
+1. Abrí `chrome://extensions` (o `edge://extensions`) y activá **Modo desarrollador**.
+2. **Cargar descomprimida** y elegí esta carpeta.
 
 ## Ajustes
 
 Clic en el ícono de la extensión:
-- **Envíos ya usados este año:** cupo de 5 envíos por año. Al llegar a 5 se pierde la franquicia.
-- **Unidades de la misma especie:** más de 3 sale del régimen simplificado.
-- **IVA reducido:** activalo solo si sabés que el producto lo tiene.
+- **Envíos usados este año:** el cupo es de 5 por año; al llegar a 5 se pierde la franquicia de USD 400.
+- **Unidades iguales en el pedido:** más de 3 sale del régimen simplificado.
+- **IVA reducido 10,5 %:** activalo solo si el producto lo tiene (notebooks, tablets y similares).
 
-## Actualizar las reglas
+## Privacidad
 
-Editá `src/core/rules.json` (franquicia, alícuotas, percepción de tarjeta) y recargá la extensión. Detalle de cada valor y su fuente en `docs/rules-verification.md`.
+No hay cuentas, servidores propios ni analítica. Ver [`privacy-policy.md`](privacy-policy.md).
 
 ## Desarrollo
 
-- `npm test` corre los tests (Vitest).
-- Si Amazon cambia su HTML, se tocan los selectores de `src/content/parser.js` y los `ANCHORS` de `src/content/inject.js`; los tests usan fragmentos de HTML en `tests/parser.test.js`.
+- `npm install` y `npm test` (Vitest).
+- Reglas impositivas en `src/core/rules.json`; su verificación y fuentes en `docs/rules-verification.md`.
+- Si Amazon cambia su HTML, se tocan los selectores de `src/content/parser.js` y los `ANCHORS` de `src/content/inject.js`.
+- Alcance: solo amazon.com y amazon.es, envío por courier a domicilio.
 
-## Alcance
-
-Solo amazon.com y amazon.es, envío por courier a domicilio. Fuera de alcance: otras tiendas Amazon, casilleros, cálculo automático del cupo, detección de categoría, Firefox/Safari.
-
-El cálculo separa lo que cobra Amazon (blue, o tarjeta con la percepción del 30 % sobre precio + envío) de los tributos aduaneros (arancel + IVA), que se pagan en pesos al courier al dólar oficial, sin percepción; ver `docs/rules-verification.md`.
-
-## Privacidad y licencia
-
-Política de privacidad: [`privacy-policy.md`](privacy-policy.md). Licencia MIT.
+Licencia MIT.

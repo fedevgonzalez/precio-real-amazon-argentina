@@ -1,4 +1,4 @@
-# Política de privacidad — Precio real Amazon Argentina
+# Política de privacidad — Cuánto Me Sale en Argentina (para Amazon)
 
 Última actualización: 30 de septiembre de 2026
 

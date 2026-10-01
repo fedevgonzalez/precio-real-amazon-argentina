@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Precio real Amazon Argentina",
+  "name": "Cuánto Me Sale en Argentina — para Amazon",
   "version": "0.1.0",
-  "description": "Muestra en Amazon el total en USD y en pesos al dólar blue, con impuestos de importación a Argentina. No afiliada a Amazon.",
+  "description": "Debajo de cada precio de amazon.com y amazon.es: total con envío e impuestos de importación, y en pesos al blue. Sin registro.",
   "permissions": [
     "storage"
   ],
@@ -47,7 +47,7 @@
   "options_page": "src/options/options.html",
   "action": {
     "default_popup": "src/options/options.html",
-    "default_title": "Precio real Amazon Argentina",
+    "default_title": "Cuánto Me Sale en Argentina",
     "default_icon": {
       "16": "src/icons/icon16.png",
       "32": "src/icons/icon32.png",
