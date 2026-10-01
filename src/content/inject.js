@@ -103,7 +103,7 @@ export function mountCardLine(card, line) {
   card.querySelectorAll('.aar-card').forEach((n) => n.remove());
   // Lista de búsqueda: el bloque de precio; carrusel: el enlace que envuelve el precio.
   const precio = card.querySelector('.a-price:not(.a-text-price)');
-  const anchor = card.querySelector('[data-cy="price-recipe"]') ?? precio?.closest('a') ?? precio;
+  const anchor = card.querySelector('[data-cy="price-recipe"], [data-testid="price-section"]') ?? precio?.closest('a') ?? precio;
   if (!anchor) return false;
   anchor.insertAdjacentElement('afterend', line);
   return true;

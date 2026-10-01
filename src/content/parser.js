@@ -166,11 +166,11 @@ function carouselAsin(card) {
     ?? null;
 }
 
-/** Tarjetas de los carruseles de recomendaciones de cualquier página: [{card, asin, product}]. */
+/** Tarjetas de los carruseles de recomendaciones y de la grilla de ofertas (/deals) de cualquier página: [{card, asin, product}]. */
 export function parseCarouselCards(doc, hostname) {
   const store = STORES.find((s) => s.host.test(hostname));
   if (!store) return [];
-  return [...doc.querySelectorAll('.a-carousel-card')].map((card) => ({ card, asin: carouselAsin(card), product: parseCarouselCard(card, store) }));
+  return [...doc.querySelectorAll('.a-carousel-card, [data-testid="product-card"]')].map((card) => ({ card, asin: carouselAsin(card), product: parseCarouselCard(card, store) }));
 }
 
 /** Total real de Amazon de un producto, leído del HTML de su página (para la lista). null si no hay o el precio no coincide. */

@@ -102,7 +102,7 @@ function pumpFetches() {
 async function updateCards(gen, conBusqueda) {
   const cards = [
     ...(conBusqueda ? parseSearchCards(document, location.hostname).map((c) => ({ ...c, tipo: 'busqueda' })) : []),
-    ...parseCarouselCards(document, location.hostname).map((c) => ({ ...c, tipo: 'carrusel' })),
+    ...parseCarouselCards(document, location.hostname).map((c) => ({ ...c, tipo: c.card.matches('.a-carousel-card') ? 'carrusel' : 'busqueda' })),
   ].slice(0, MAX_CARDS);
   if (!cards.some((c) => c.product.ok)) return;
 

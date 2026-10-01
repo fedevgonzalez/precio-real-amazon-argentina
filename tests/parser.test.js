@@ -276,3 +276,12 @@ describe('carrusel: re-lectura con nuestro renglón', () => {
     expect(parseCarouselCards(d, 'www.amazon.es')[0].product).toMatchObject({ precio: { min: 39.9 }, envio: 32.35 });
   });
 });
+
+describe('grilla de ofertas (/deals)', () => {
+  it('toma la tarjeta product-card con su ASIN y el precio "Precio de la oferta: US$15.96"', () => {
+    const d = doc('<div data-testid="product-card" data-asin="B07F2QF1P4"><div data-testid="price-section"><span class="a-price"><span class="a-offscreen">Precio de la oferta: US$15.96</span></span></div></div>');
+    const [c] = parseCarouselCards(d, 'www.amazon.com');
+    expect(c.asin).toBe('B07F2QF1P4');
+    expect(c.product).toMatchObject({ ok: true, precio: { min: 15.96 } });
+  });
+});
