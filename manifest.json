@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Cuánto Me Sale en Argentina — para Amazon",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Debajo de cada precio de amazon.com y amazon.es: total con envío e impuestos de importación, y en pesos al blue. Sin registro.",
   "permissions": [
     "storage"
