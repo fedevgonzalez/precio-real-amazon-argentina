@@ -39,12 +39,33 @@ const fetchQueue = [];
 let fetching = 0;
 let queued = 0;
 let queuedCarrusel = 0;
+// Los totales reales se piden recién cuando la tarjeta se acerca a la pantalla (hay páginas con 200 tarjetas).
+const pendientes = new WeakMap();
+const visibles = new IntersectionObserver((entradas) => {
+  for (const { isIntersecting, target } of entradas) {
+    const q = pendientes.get(target);
+    if (!isIntersecting || !q) continue;
+    visibles.unobserve(target);
+    pendientes.delete(target);
+    if (q.carrusel ? queuedCarrusel >= MAX_FETCH_CARRUSEL : queued >= MAX_FETCH) continue;
+    if (q.carrusel) queuedCarrusel++; else queued++;
+    fetchQueue.push(q);
+  }
+  pumpFetches();
+}, { rootMargin: '600px' });
 
 function renderCard(card) {
   const st = cardState.get(card);
   if (!st) return;
   const { product, res, settings, base } = st;
   const real = card.dataset.aarTotal ? Number(card.dataset.aarTotal) : undefined;
+  // Envío desconocido en amazon.com: una estimación sin envío subestima mucho (US$24 vs US$59 reales).
+  // Hasta tener el total real de Amazon no se muestra nada.
+  if (product.envio == null && real === undefined && location.hostname.endsWith('amazon.com')) {
+    card.querySelector('.aar-card')?.remove();
+    delete card.dataset.aarSig;
+    return;
+  }
   const sig = base + JSON.stringify([product.precio, product.envio, product.moneda, real]);
   if (card.dataset.aarSig === sig && card.querySelector('.aar-card')) return;
   const amazonTotal = product.precio.min === product.precio.max ? real : undefined;
@@ -123,11 +144,10 @@ async function updateCards(gen, conBusqueda) {
       }
       cardState.set(card, { product, res, settings, base });
       renderCard(card);
-      const hayCupo = tipo === 'carrusel' ? queuedCarrusel < MAX_FETCH_CARRUSEL : queued < MAX_FETCH;
-      if (conTotalReal && asin && product.precio.min === product.precio.max && !card.dataset.aarTried && hayCupo) {
+      if (conTotalReal && asin && product.precio.min === product.precio.max && !card.dataset.aarTried) {
         card.dataset.aarTried = '1';
-        if (tipo === 'carrusel') queuedCarrusel++; else queued++;
-        fetchQueue.push({ card, asin, precio: product.precio.min });
+        pendientes.set(card, { card, asin, precio: product.precio.min, carrusel: tipo === 'carrusel' });
+        visibles.observe(card);
       }
     }
   });
