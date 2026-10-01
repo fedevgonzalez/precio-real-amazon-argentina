@@ -1,4 +1,4 @@
-import { parseProduct, parseSearchCards, amazonTotalFromHtml } from './parser.js';
+import { parseProduct, parseSearchCards, parseCarouselCards, amazonTotalFromHtml } from './parser.js';
 import { buildBlock, mount, renderSignature, buildCardLine, mountCardLine } from './inject.js';
 import { calc } from '../core/calc.js';
 import { loadSettings } from '../core/settings.js';
@@ -31,12 +31,14 @@ function paused(fn) {
 // leído de la página del producto (solo ahí Amazon informa los cargos de importación), con caché por ASIN.
 const FETCH_POOL = 3;
 const MAX_FETCH = 40;
+const MAX_FETCH_CARRUSEL = 16; // menos pedidos de fondo en recomendaciones: están en casi todas las páginas
 const TOTAL_TTL_MS = 6 * 3600 * 1000;
 const MAX_TOTALES = 300;
 const cardState = new WeakMap();
 const fetchQueue = [];
 let fetching = 0;
 let queued = 0;
+let queuedCarrusel = 0;
 
 function renderCard(card) {
   const st = cardState.get(card);
@@ -95,11 +97,13 @@ function pumpFetches() {
   }
 }
 
-// Página de resultados: un renglón por tarjeta con el mismo cálculo que la página de producto.
-async function updateSearch(gen) {
-  lastDetails = null;
-  document.getElementById('aar-block')?.remove();
-  const cards = parseSearchCards(document, location.hostname).slice(0, MAX_CARDS);
+// Tarjetas de producto que no son la página principal: resultados de búsqueda y carruseles de recomendaciones.
+// Un renglón por tarjeta con el mismo cálculo que la página de producto.
+async function updateCards(gen, conBusqueda) {
+  const cards = [
+    ...(conBusqueda ? parseSearchCards(document, location.hostname).map((c) => ({ ...c, tipo: 'busqueda' })) : []),
+    ...parseCarouselCards(document, location.hostname).map((c) => ({ ...c, tipo: 'carrusel' })),
+  ].slice(0, MAX_CARDS);
   if (!cards.some((c) => c.product.ok)) return;
 
   const res = await chrome.runtime.sendMessage({ type: 'GET_RATES' });
@@ -111,7 +115,7 @@ async function updateSearch(gen) {
   const conTotalReal = location.hostname.endsWith('amazon.com');
 
   paused(() => {
-    for (const { card, product } of cards) {
+    for (const { card, product, asin, tipo } of cards) {
       if (!product.ok) {
         card.querySelector('.aar-card')?.remove();
         delete card.dataset.aarSig;
@@ -119,10 +123,10 @@ async function updateSearch(gen) {
       }
       cardState.set(card, { product, res, settings, base });
       renderCard(card);
-      const asin = card.getAttribute('data-asin');
-      if (conTotalReal && asin && product.precio.min === product.precio.max && !card.dataset.aarTried && queued < MAX_FETCH) {
+      const hayCupo = tipo === 'carrusel' ? queuedCarrusel < MAX_FETCH_CARRUSEL : queued < MAX_FETCH;
+      if (conTotalReal && asin && product.precio.min === product.precio.max && !card.dataset.aarTried && hayCupo) {
         card.dataset.aarTried = '1';
-        queued++;
+        if (tipo === 'carrusel') queuedCarrusel++; else queued++;
         fetchQueue.push({ card, asin, precio: product.precio.min });
       }
     }
@@ -133,7 +137,16 @@ async function updateSearch(gen) {
 async function update() {
   // Token de generación: una respuesta lenta de una variante anterior no debe pisar a la actual.
   const gen = ++generation;
-  if (isSearchPage()) return updateSearch(gen);
+  if (isSearchPage()) {
+    lastDetails = null;
+    document.getElementById('aar-block')?.remove();
+    return updateCards(gen, true);
+  }
+  await updateProduct(gen);
+  if (gen === generation) await updateCards(gen, false); // carruseles de recomendaciones de la misma página
+}
+
+async function updateProduct(gen) {
   const product = parseProduct(document, location.hostname);
   if (!product.ok) {
     if (product.error === 'NO_SHIP_TO_AR') {

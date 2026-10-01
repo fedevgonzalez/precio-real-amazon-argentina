@@ -189,3 +189,12 @@ describe('renglón por tarjeta (búsqueda)', () => {
     expect(mountCardLine(vacia, buildCardLine(d, { results: [ok(1, 2)] }))).toBe(false);
   });
 });
+
+describe('renglón en una tarjeta de carrusel', () => {
+  it('se monta después del enlace que envuelve el precio', () => {
+    const d = new DOMParser().parseFromString('<body><li class="a-carousel-card"><div><a id="p" href="/dp/B0AAAAAAAA"><span class="a-price"><span class="a-offscreen">US$26.55</span></span></a></div></li></body>', 'text/html');
+    const card = d.querySelector('.a-carousel-card');
+    expect(mountCardLine(card, buildCardLine(d, { results: [ok(1)] }))).toBe(true);
+    expect(d.getElementById('p').nextElementSibling.className).toBe('aar-card');
+  });
+});

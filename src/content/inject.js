@@ -101,7 +101,9 @@ export function buildCardLine(doc, { results }) {
 /** Inserta el renglón debajo del precio de la tarjeta (reemplaza uno previo). false si la tarjeta no tiene precio. */
 export function mountCardLine(card, line) {
   card.querySelectorAll('.aar-card').forEach((n) => n.remove());
-  const anchor = card.querySelector('[data-cy="price-recipe"]');
+  // Lista de búsqueda: el bloque de precio; carrusel: el enlace que envuelve el precio.
+  const precio = card.querySelector('.a-price:not(.a-text-price)');
+  const anchor = card.querySelector('[data-cy="price-recipe"]') ?? precio?.closest('a') ?? precio;
   if (!anchor) return false;
   anchor.insertAdjacentElement('afterend', line);
   return true;

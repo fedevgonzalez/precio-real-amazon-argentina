@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parseAmount, parseProduct, parseSearchCards, amazonTotalFromHtml } from '../src/content/parser.js';
+import { parseAmount, parseProduct, parseSearchCards, parseCarouselCards, amazonTotalFromHtml } from '../src/content/parser.js';
 
 const doc = (html) => new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
 const price = (t, extra = '') => `<span class="a-price"><span class="a-offscreen">${t}</span></span>${extra}`;
@@ -228,5 +228,39 @@ describe('amazonTotalFromHtml (lista → página del producto)', () => {
   it('null si el precio difiere (otra variante o cupón) o si no hay panel', () => {
     expect(amazonTotalFromHtml(page('US$149.99', 'US$35.11 de cargos de importación y envío gratis a Argentina'), 'www.amazon.com', 139.99)).toBeNull();
     expect(amazonTotalFromHtml(`<body>${core(price('US$139.99'))}</body>`, 'www.amazon.com', 139.99)).toBeNull();
+  });
+});
+
+describe('parseCarouselCards (recomendaciones)', () => {
+  const car = (asin, inner) => `<ul><li class="a-carousel-card"${asin ? ` data-asin="${asin}"` : ''}>${inner}</li></ul>`;
+  const precio = (t) => `<a class="a-link-normal" href="/dp/B0AAAAAAAA?ref=x"><span class="a-price"><span class="a-offscreen">${t}</span></span></a>`;
+  const parse = (html, host = 'www.amazon.com') => parseCarouselCards(doc(html), host);
+
+  it('gratis condicionado ("en US$99 de artículos elegibles") → envío desconocido (null) y lee el ASIN', () => {
+    const [c] = parse(car('B0DD41G2NZ', precio('US$26.55') + '<span class="a-price a-text-price"><span class="a-offscreen">US$39.99</span></span><div>Entrega GRATIS el mié, 14 de oct a Argentina en US$99 de artículos elegibles</div>'));
+    expect(c.asin).toBe('B0DD41G2NZ');
+    expect(c.product).toEqual({ ok: true, moneda: 'USD', precio: { min: 26.55, max: 26.55 }, envio: null, envioIncluyeImportFees: false });
+  });
+
+  it('envío con monto ("US$50.03 de envío") → ese envío', () => {
+    const [c] = parse(car('B0AAAAAAAA', precio('US$129.95') + '<div>US$50.03 de envío</div>'));
+    expect(c.product.envio).toBe(50.03);
+  });
+
+  it('envío gratis sin condición ("Envío GRATIS por Amazon") → 0', () => {
+    const [c] = parse(car(null, precio('US$99.98') + '<div>Recíbelo el viernes, 9 de octubreEnvío GRATIS por Amazon</div>'));
+    expect(c.asin).toBe('B0AAAAAAAA'); // sin data-asin: sale del enlace /dp/ASIN
+    expect(c.product.envio).toBe(0);
+  });
+
+  it('texto oculto sin decimal ("US$7491") → usa entero + fracción visibles', () => {
+    const html = car('B0DDDDDDDD', '<span class="a-price"><span class="a-offscreen">US$7491</span><span aria-hidden="true"><span class="a-price-symbol">US$</span><span class="a-price-whole">74<span class="a-price-decimal"></span></span><span class="a-price-fraction">91</span></span></span>');
+    expect(parse(html)[0].product.precio.min).toBe(74.91);
+  });
+
+  it('tarjeta sin precio o sin disponibilidad → PRICE_NOT_FOUND; miles con coma y amazon.es', () => {
+    expect(parse(car('B0BBBBBBBB', '<div>No disponible por el momento.</div>'))[0].product).toEqual({ ok: false, error: 'PRICE_NOT_FOUND' });
+    expect(parse(car('B0CCCCCCCC', precio('US$5,999.99')))[0].product.precio.min).toBe(5999.99);
+    expect(parse(car('B07MLFBJG3', precio('8,99 €')), 'www.amazon.es')[0].product).toMatchObject({ ok: true, moneda: 'EUR', precio: { min: 8.99 } });
   });
 });

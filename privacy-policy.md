@@ -19,7 +19,7 @@ No se guardan tu historial de navegación, tus compras, tus datos de Amazon, tu 
 ## Conexiones de red
 
 - **Servicios de cotización:** para obtener el dólar blue y el tipo de cambio EUR/USD la extensión consulta `dolarapi.com`, `api.bluelytics.com.ar`, `api.frankfurter.dev` y `open.er-api.com`. Son pedidos públicos sin datos tuyos; como en cualquier pedido web, esos servicios ven tu dirección IP.
-- **Amazon:** en las listas de búsqueda de amazon.com, la extensión abre en segundo plano la página de cada producto (hasta 40 por página) desde tu propia sesión, para leer el total real que Amazon informa. Es el mismo tipo de pedido que hace tu navegador al abrir esos productos.
+- **Amazon:** en las listas de búsqueda y en los carruseles de recomendaciones de amazon.com, la extensión abre en segundo plano la página de cada producto (hasta 40 por página en las listas y 16 en los carruseles) desde tu propia sesión, para leer el total real que Amazon informa. Es el mismo tipo de pedido que hace tu navegador al abrir esos productos.
 
 La extensión no envía información a ningún otro destino.
 

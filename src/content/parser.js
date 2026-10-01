@@ -125,7 +125,48 @@ function parseCard(card, store) {
 export function parseSearchCards(doc, hostname) {
   const store = STORES.find((s) => s.host.test(hostname));
   if (!store) return [];
-  return [...doc.querySelectorAll(CARD)].map((card) => ({ card, product: parseCard(card, store) }));
+  return [...doc.querySelectorAll(CARD)].map((card) => ({ card, asin: card.getAttribute('data-asin'), product: parseCard(card, store) }));
+}
+
+// --- Carruseles de recomendaciones ("Vistos frecuentemente", "También vieron", …) -----------------
+// Cada tarjeta trae el precio y una leyenda de entrega: "US$50.03 de envío", "Entrega GRATIS …" o
+// "Entrega GRATIS … en US$99 de artículos elegibles" (gratis condicionado → envío desconocido).
+function shippingFromCardText(flat, store) {
+  const pagado = flat.match(new RegExp(`(${MONEY.source})\\s*de env[ií]o`, 'i'));
+  if (pagado) {
+    const n = parseAmount(pagado[1], store.locale);
+    if (Number.isFinite(n)) return { envio: n, envioIncluyeImportFees: false };
+  }
+  const i = flat.search(/Entrega|Rec[ií]belo|Env[ií]o|Shipping|delivery/i);
+  return shippingFromText(i < 0 ? '' : flat.slice(i, i + 140), store);
+}
+
+function parseCarouselCard(card, store) {
+  const node = card.querySelector('.a-price:not(.a-text-price) .a-offscreen');
+  if (!node) return { ok: false, error: 'PRICE_NOT_FOUND' };
+  if (!node.textContent.includes(store.symbol)) return { ok: false, error: 'UNEXPECTED_CURRENCY' };
+  // Algunos carruseles traen el texto oculto sin separador decimal ("US$7491" = 74,91): se arma con entero + fracción.
+  const price = node.closest('.a-price');
+  const whole = price.querySelector('.a-price-whole')?.textContent.replace(/\D/g, '');
+  const frac = price.querySelector('.a-price-fraction')?.textContent.replace(/\D/g, '');
+  const a = whole ? Number(`${whole}.${frac || '0'}`) : parseAmount(node.textContent, store.locale);
+  if (!Number.isFinite(a) || a <= 0) return { ok: false, error: 'PRICE_NOT_FOUND' };
+  const flat = card.textContent.replace(/[\s\u00a0]+/g, ' ');
+  return { ok: true, moneda: store.moneda, precio: { min: a, max: a }, ...shippingFromCardText(flat, store) };
+}
+
+function carouselAsin(card) {
+  return card.getAttribute('data-asin')
+    ?? card.querySelector('[data-asin]')?.getAttribute('data-asin')
+    ?? card.querySelector('a[href*="/dp/"]')?.getAttribute('href')?.match(/\/dp\/([A-Z0-9]{10})/)?.[1]
+    ?? null;
+}
+
+/** Tarjetas de los carruseles de recomendaciones de cualquier página: [{card, asin, product}]. */
+export function parseCarouselCards(doc, hostname) {
+  const store = STORES.find((s) => s.host.test(hostname));
+  if (!store) return [];
+  return [...doc.querySelectorAll('.a-carousel-card')].map((card) => ({ card, asin: carouselAsin(card), product: parseCarouselCard(card, store) }));
 }
 
 /** Total real de Amazon de un producto, leído del HTML de su página (para la lista). null si no hay o el precio no coincide. */

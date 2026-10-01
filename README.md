@@ -9,7 +9,7 @@ Blue: ~ARS 99.852
 ```
 
 - **amazon.com, página de producto:** el total es el que Amazon informa y cobra en el checkout (precio + envío + cargos de importación). Sin `~`.
-- **Listas de búsqueda:** cada producto muestra su total; en amazon.com la extensión lo reemplaza por el total real leyendo la página de cada producto.
+- **Listas de búsqueda y carruseles de recomendaciones** ("Vistos frecuentemente", "También vieron"…): cada producto muestra su total; en amazon.com la extensión lo reemplaza por el total real leyendo la página de cada producto.
 - **amazon.es:** Amazon descuenta el IVA de España antes de cobrar el envío a Argentina; la extensión lo modela. Es una estimación (`~`) que en los checkouts probados difiere un 0,4 %.
 - **Popup:** desglose del producto abierto (precio, envío, franquicia de USD 400, arancel, IVA), cotizaciones usadas y avisos, más los ajustes.
 
