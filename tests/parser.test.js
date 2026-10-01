@@ -285,3 +285,12 @@ describe('grilla de ofertas (/deals)', () => {
     expect(c.product).toMatchObject({ ok: true, precio: { min: 15.96 } });
   });
 });
+
+describe('grilla de envío gratis (/fmc)', () => {
+  it('toma la tarjeta gridElement-ASIN y lee el ASIN del enlace', () => {
+    const d = doc('<div class="a-cardui" id="gridElement-B0FSRR5K9J"><a href="/x/dp/B0FSRR5K9J?ref=1">img</a><div class="a-row"><span class="a-price"><span class="a-offscreen">US$15.90</span></span></div></div>');
+    const [c] = parseCarouselCards(d, 'www.amazon.com');
+    expect(c.asin).toBe('B0FSRR5K9J');
+    expect(c.product).toMatchObject({ ok: true, precio: { min: 15.9 } });
+  });
+});
